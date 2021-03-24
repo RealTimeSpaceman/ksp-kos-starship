@@ -37,18 +37,18 @@ function get_rolldock {
     return arcTan2(-vDot(fcgShip:starvector, rDirection:forevector), vDot(fcgShip:topvector, rDirection:forevector)).
 }
 
-function get_rollnose {
+function get_yawnose {
     parameter rTarget.
     local fcgShip is SHIP:facing.
 
-    local svlYaw is vxcl(fcgShip:topvector, rTarget:forevector):normalized.
-    local dirYaw is vDot(fcgShip:starvector, svlYaw).
-    local angYaw is vAng(fcgShip:forevector, svlYaw).
+    local svlRol is vxcl(fcgShip:topvector, rTarget:forevector):normalized.
+    local dirRol is vDot(fcgShip:starvector, svlRol).
+    local angRol is vAng(fcgShip:forevector, svlRol).
 
-    if dirYaw > 0 { return angYaw. } else { return (0 - angYaw). }
+    if dirRol > 0 { return angRol. } else { return (0 - angRol). }
 }
 
-function get_yawnose {
+function get_rollnose {
     parameter rDirection.
     local fcgShip is SHIP:facing.
     return 0 - arcTan2(-vDot(fcgShip:starvector, rDirection:forevector), vDot(fcgShip:topvector, rDirection:forevector)).
@@ -197,8 +197,8 @@ global landingPad is latlng(26.00108, -97.16716).
 
 // Set initial global values for the loop
 global curPitAng is get_pit(srfprograde).
-global curYawAng is get_yawnose(srfretrograde).
-global curRolAng is get_rollnose(SS:up).
+global curYawAng is get_yawdock(srfretrograde).
+global curRolAng is get_rolldock(SS:up).
 global curTime is time:seconds.
 global csfPitch is 0.
 global csfYaw is 0.
@@ -227,51 +227,51 @@ global aeroOn to false.
 set pidPit2 to pidLoop(1.5, 0.1, 3).
 set pidPit2:setpoint to 0.
 
-set pidYaw2 to pidLoop(2, 0.001, 4).
-set pidYaw2:setpoint to 0.
-
-set pidRol2 to pidLoop(3, 0.001, 5).
+set pidRol2 to pidLoop(2, 0.001, 4).
 set pidRol2:setpoint to 0.
+
+set pidYaw2 to pidLoop(3, 0.001, 5).
+set pidYaw2:setpoint to 0.
 
 // PID loops phase 3
 set pidPit3 to pidLoop(0.5, 0.1, 3).
 set pidPit3:setpoint to 0.
 
-set pidYaw3 to pidLoop(0.1, 0.001, 0.3).
-set pidYaw3:setpoint to 0.
-
-set pidRol3 to pidLoop(0.3, 0.001, 0.5).
+set pidRol3 to pidLoop(0.1, 0.001, 0.3).
 set pidRol3:setpoint to 0.
+
+set pidYaw3 to pidLoop(0.3, 0.001, 0.5).
+set pidYaw3:setpoint to 0.
 
 // PID loops phase 4
 set pidPit4 to pidLoop(0.35, 0.5, 2).
 set pidPit4:setpoint to 0.
 
-set pidYaw4 to pidLoop(0.1, 0.001, 0.3).
-set pidYaw4:setpoint to 0.
-
 set pidRol4 to pidLoop(0.1, 0.001, 0.3).
 set pidRol4:setpoint to 0.
+
+set pidYaw4 to pidLoop(0.1, 0.001, 0.3).
+set pidYaw4:setpoint to 0.
 
 // PID loops phase 5
 set pidPit5 to pidLoop(0.5, 0.1, 3).
 set pidPit5:setpoint to 0.
 
-set pidYaw5 to pidLoop(0.6, 0.1, 1).
-set pidYaw5:setpoint to 0.
-
-set pidRol5 to pidLoop(1.2, 0.001, 2).
+set pidRol5 to pidLoop(0.6, 0.1, 1).
 set pidRol5:setpoint to 0.
+
+set pidYaw5 to pidLoop(1.2, 0.001, 2).
+set pidYaw5:setpoint to 0.
 
 // PID loops phase 6
 set pidPit6 to pidLoop(0.5, 0.1, 3).
 set pidPit6:setpoint to 0.
 
-set pidYaw6 to pidLoop(0.3, 0.001, 0.5).
-set pidYaw6:setpoint to 0.
-
-set pidRol6 to pidLoop(0.1, 0, 0.1).
+set pidRol6 to pidLoop(0.3, 0.001, 0.5).
 set pidRol6:setpoint to 0.
+
+set pidYaw6 to pidLoop(0.1, 0, 0.1).
+set pidYaw6:setpoint to 0.
 
 // PID loop heading
 set pidHeading to pidLoop(10, 0.001, 0.001).
@@ -313,7 +313,7 @@ sas off.
 lock SSHeading to vang(north:vector, SS:srfPrograde:vector).
 lock padDist to landingPad:distance / 1000.
 
-lock rollTarget to SS:up.
+lock axisTarget to SS:up.
 
 // Set initial pitch value
 set adjAlt to (SS:altitude / 1000).
@@ -375,16 +375,16 @@ until (alt:radar / 1000) < srpFinAlt {
 
         trkPitAng:add(get_pit(srfretrograde)).
         trkYawAng:add(get_yawdock(srfretrograde)).
-        trkRolAng:add(get_rolldock(rollTarget)).
+        trkRolAng:add(get_rolldock(axisTarget)).
 
     } else {
 
         trkPitAng:add(get_pit(srfprograde)).
-        trkYawAng:add(get_yawnose(srfretrograde)).
+        trkRolAng:add(get_rollnose(srfretrograde)).
         if curPhase >= 5 {
-            trkRolAng:add(landingPad:bearing).
+            trkYawAng:add(landingPad:bearing).
         } else {
-            trkRolAng:add(get_rollnose(rollTarget)).
+            trkYawAng:add(get_yawnose(axisTarget)).
         }
 
     }
@@ -482,7 +482,7 @@ until (alt:radar / 1000) < srpFinAlt {
     
         set csfPitch to pidPit2:update(time:seconds, trkPitAng[4] - tarPitAng).
         set csfYaw to pidYaw2:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set csfRoll to pidRol2:update(time:seconds, trkRolAng[4] - tarRolAng).
+        set csfRoll to pidRol2:update(time:seconds, trkRolAng[4]).
 
         if SS:dynamicpressure > dpPhase3 {
             set curPhase to 3.
@@ -496,9 +496,9 @@ until (alt:radar / 1000) < srpFinAlt {
     
         set csfPitch to pidPit3:update(time:seconds, trkPitAng[4] - tarPitAng).
         set csfYaw to pidYaw3:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set csfRoll to pidRol3:update(time:seconds, trkRolAng[4] - tarRolAng).
+        set csfRoll to pidRol3:update(time:seconds, trkRolAng[4]).
 
-        set tarRolAng to pidHeading:update(time:seconds, trkPadAng[4]).
+        set tarYawAng to pidHeading:update(time:seconds, trkPadAng[4]).
 
         if SS:dynamicpressure > dpPhase4 {
             set curPhase to 4.
@@ -509,7 +509,7 @@ until (alt:radar / 1000) < srpFinAlt {
 
         if zenRetAng[4] < angTrnBeg {
             set curphase to 5.
-            set tarRolAng to 0.
+            set tarYawAng to 0.
             set tarPitAng to maxPitAng.
             set csfPitch to 0.
             set csfYaw to 0.
@@ -521,13 +521,13 @@ until (alt:radar / 1000) < srpFinAlt {
     
         set csfPitch to pidPit4:update(time:seconds, trkPitAng[4] - tarPitAng).
         set csfYaw to pidYaw4:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set csfRoll to pidRol4:update(time:seconds, trkRolAng[4] - tarRolAng).
+        set csfRoll to pidRol4:update(time:seconds, trkRolAng[4]).
 
-        set tarRolAng to pidHeading:update(time:seconds, trkPadAng[4]).
+        set tarYawAng to pidHeading:update(time:seconds, trkPadAng[4]).
 
         if zenRetAng[4] < angTrnBeg {
             set curphase to 5.
-            set tarRolAng to 0.
+            set tarYawAng to 0.
             set csfPitch to 0.
             set csfYaw to 0.
             set csfRoll to 0.
@@ -551,8 +551,8 @@ until (alt:radar / 1000) < srpFinAlt {
     if curPhase = 6 { // Fall vertical - flaps control
 
         set csfPitch to pidPit5:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set csfYaw to pidYaw5:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set csfRoll to pidRol6:update(time:seconds, trkRolAng[4]).
+        set csfYaw to pidYaw6:update(time:seconds, trkYawAng[4] - tarYawAng).
+        set csfRoll to pidRol5:update(time:seconds, trkRolAng[4]).
 
     }
 
@@ -561,17 +561,17 @@ until (alt:radar / 1000) < srpFinAlt {
     print "Aero on   " + aeroOn.
     print "Step secs " + round(trkStpSec[4], 4).
     print "---------".
-    print "Head. pad " + round(trkPadAng[4], 4).
-    print "Dist. pad " + round(padDist, 4).
-    print "---------".
     print "Dyn press " + round(SS:dynamicpressure, 8).
     print "Srf speed " + round(SS:velocity:surface:mag, 4).
     print "Ret to up " + round(zenRetAng[4], 4).
     print "---------".
+    print "Dist. pad " + round(padDist, 4).
+    print "Dist. srf " + round(srfDist, 4).
     print "tarPitAng " + round(tarPitAng, 2).
     print "curPitAng " + round(trkPitAng[4], 4).
     print "csf Pitch " + round(csfPitch, 4).
     print "---------".
+    print "Head. pad " + round(trkPadAng[4], 4).
     print "tarYawAng " + round(tarYawAng, 2).
     print "curYawAng " + round(trkYawAng[4], 4).
     print "csf Yaw   " + round(csfYaw, 4).
@@ -580,7 +580,6 @@ until (alt:radar / 1000) < srpFinAlt {
     print "curRolAng " + round(trkRolAng[4], 4).
     print "csf Roll  " + round(csfRoll, 4).
     print "---------".
-    print "srfDist   " + round(srfDist, 4).
 
     local logline is time:seconds + ",".
     set logline to logline + curPhase + ",".
@@ -612,15 +611,15 @@ until (alt:radar / 1000) < srpFinAlt {
     set trmRL to trmRL + csfPitch.
     set trmRR to trmRR + csfPitch.
 
-    // Add roll angle
-    set trmFL to trmFL + csfYaw.
-    set trmFR to trmFR - csfYaw.
+    // Add yaw angle
+    set trmFL to trmFL - csfYaw.
+    set trmFR to trmFR + csfYaw.
     set trmRL to trmRL + csfYaw.
     set trmRR to trmRR - csfYaw.
 
-    // Add yaw angle
-    set trmFL to trmFL - csfRoll.
-    set trmFR to trmFR + csfRoll.
+    // Add roll angle
+    set trmFL to trmFL + csfRoll.
+    set trmFR to trmFR - csfRoll.
     set trmRL to trmRL + csfRoll.
     set trmRR to trmRR - csfRoll.
 
