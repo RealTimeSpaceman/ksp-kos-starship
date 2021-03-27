@@ -193,7 +193,8 @@ RRCS:setfield("deploy", true).
 
 // Set landing target of SpaceX Boca Chica landing pad
 // global landingPad is latlng(25.9974, -97.1561).
-global landingPad is latlng(26.00108, -97.16716).
+// global landingPad is latlng(26.00108, -97.16716).
+global landingPad is latlng(26.0384, -97.1537).
 
 // Set initial global values for the loop
 global curPitAng is get_pit(srfprograde).
