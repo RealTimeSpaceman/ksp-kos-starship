@@ -192,8 +192,6 @@ RRCS:setfield("deploy", true).
 //---------------------------------------------------------------------------------------------------------------------
 
 // Set landing target of SpaceX Boca Chica landing pad
-// global landingPad is latlng(25.9974, -97.1561).
-// global landingPad is latlng(26.00108, -97.16716).
 global landingPad is latlng(26.0384, -97.1537).
 
 // Set initial global values for the loop
@@ -228,49 +226,43 @@ global aeroOn to false.
 set pidPit2 to pidLoop(1.5, 0.1, 3).
 set pidPit2:setpoint to 0.
 
-set pidRol2 to pidLoop(2, 0.001, 4).
-set pidRol2:setpoint to 0.
-
 set pidYaw2 to pidLoop(3, 0.001, 5).
 set pidYaw2:setpoint to 0.
+
+set pidRol2 to pidLoop(2, 0.001, 4).
+set pidRol2:setpoint to 0.
 
 // PID loops phase 3
 set pidPit3 to pidLoop(0.5, 0.1, 3).
 set pidPit3:setpoint to 0.
 
-set pidRol3 to pidLoop(0.1, 0.001, 0.3).
-set pidRol3:setpoint to 0.
-
 set pidYaw3 to pidLoop(0.3, 0.001, 0.5).
 set pidYaw3:setpoint to 0.
+
+set pidRol3 to pidLoop(0.1, 0.001, 0.3).
+set pidRol3:setpoint to 0.
 
 // PID loops phase 4
 set pidPit4 to pidLoop(0.35, 0.5, 2).
 set pidPit4:setpoint to 0.
 
-set pidRol4 to pidLoop(0.1, 0.001, 0.3).
-set pidRol4:setpoint to 0.
-
 set pidYaw4 to pidLoop(0.1, 0.001, 0.3).
 set pidYaw4:setpoint to 0.
+
+set pidRol4 to pidLoop(0.1, 0.001, 0.3).
+set pidRol4:setpoint to 0.
 
 // PID loops phase 5
 set pidPit5 to pidLoop(0.5, 0.1, 3).
 set pidPit5:setpoint to 0.
 
-set pidRol5 to pidLoop(0.6, 0.1, 1).
-set pidRol5:setpoint to 0.
-
 set pidYaw5 to pidLoop(1.2, 0.001, 2).
 set pidYaw5:setpoint to 0.
 
+set pidRol5 to pidLoop(0.6, 0.1, 1).
+set pidRol5:setpoint to 0.
+
 // PID loops phase 6
-set pidPit6 to pidLoop(0.5, 0.1, 3).
-set pidPit6:setpoint to 0.
-
-set pidRol6 to pidLoop(0.3, 0.001, 0.5).
-set pidRol6:setpoint to 0.
-
 set pidYaw6 to pidLoop(0.1, 0, 0.1).
 set pidYaw6:setpoint to 0.
 
@@ -282,6 +274,11 @@ set pidHeading:setpoint to 0.
 global tarPitAng to 0.
 global tarYawAng to 0.
 global tarRolAng to 0.
+
+// Set min/max ranges
+global maxPitAng is 80.
+global minPitAng is 30.
+global maxYawAng is 35.
 
 // Set phase thresholds
 global dpPhase2 is 0.005.
@@ -297,9 +294,6 @@ global lrpTargKM is 15.
 global lrpConst is 105.
 global lrpRatio is 0.000011.
 global lrpQRcode is 0. // Temporary value used in the calculation
-global maxPitAng is 80.
-global minPitAng is 30.
-
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
 global srpTargKM is 0.5.
@@ -346,6 +340,7 @@ set logline to logline + "Retro Zenith,".
 set logline to logline + "Target pitch,".
 set logline to logline + "Pitch ang,".
 set logline to logline + "Pitch srf,".
+set logline to logline + "Target yaw,".
 set logline to logline + "Yaw ang,".
 set logline to logline + "Yaw srf,".
 set logline to logline + "Roll ang,".
@@ -487,6 +482,7 @@ until (alt:radar / 1000) < srpFinAlt {
 
         if SS:dynamicpressure > dpPhase3 {
             set curPhase to 3.
+            rcs off.
             set csfPitch to 0.
             set csfYaw to 0.
             set csfRoll to 0.
@@ -500,6 +496,8 @@ until (alt:radar / 1000) < srpFinAlt {
         set csfRoll to pidRol3:update(time:seconds, trkRolAng[4]).
 
         set tarYawAng to pidHeading:update(time:seconds, trkPadAng[4]).
+        if tarYawAng > maxYawAng { set tarYawAng to maxYawAng. }
+        if abs(tarYawAng) > maxYawAng { set tarYawAng to 0 - maxYawAng. }
 
         if SS:dynamicpressure > dpPhase4 {
             set curPhase to 4.
@@ -525,6 +523,8 @@ until (alt:radar / 1000) < srpFinAlt {
         set csfRoll to pidRol4:update(time:seconds, trkRolAng[4]).
 
         set tarYawAng to pidHeading:update(time:seconds, trkPadAng[4]).
+        if tarYawAng > maxYawAng { set tarYawAng to maxYawAng. }
+        if abs(tarYawAng) > maxYawAng { set tarYawAng to 0 - maxYawAng. }
 
         if zenRetAng[4] < angTrnBeg {
             set curphase to 5.
@@ -592,6 +592,7 @@ until (alt:radar / 1000) < srpFinAlt {
     set logline to logline + round(tarPitAng, 4) + ",".
     set logline to logline + round(trkPitAng[4], 4) + ",".
     set logline to logline + round(csfPitch, 4) + ",".
+    set logline to logline + round(tarYawAng, 4) + ",".
     set logline to logline + round(trkYawAng[4], 4) + ",".
     set logline to logline + round(csfYaw, 4) + ",".
     set logline to logline + round(trkRolAng[4], 4) + ",".
@@ -632,51 +633,160 @@ until (alt:radar / 1000) < srpFinAlt {
 
 }
 
-clearScreen.
-print "FLIP MANOUVEURE".
-
-// Set control surfaces
-FLCS:setfield("deploy angle", 0).
-FRCS:setfield("deploy angle", 0).
-RLCS:setfield("deploy angle", 90).
-RRCS:setfield("deploy angle", 90).
-
-// change control to nose
-// MODCM:doevent("control point: docking").
+set curphase to 7.
 
 // Activate engines
 SLRA:activate.
 SLRB:activate.
 SLRC:activate.
 
-until SS:verticalspeed > -6 {
+// Set control surfaces for flip manoeuvre
+FLCS:setfield("deploy angle", 0).
+FRCS:setfield("deploy angle", 0).
+RLCS:setfield("deploy angle", 90).
+RRCS:setfield("deploy angle", 90).
 
-    clearScreen.
-    print "Vert spd " + round(SS:verticalspeed).
-    print "Altitude " + round(alt:radar).
-
-    lock steering to SS:up.
-    lock throttle to 1.
-
-}
-
-RLCS:setfield("deploy angle", 0).
-RRCS:setfield("deploy angle", 0).
-
-SLRA:shutdown.
-lock throttle to thr.
+// set throttle and pilot control for flip manoeuvre
+lock throttle to 1.
 lock steering to SS:up.
-legs on.
 
-set pidThrottle to pidLoop(1, 0.001, 0.001).
-set pidThrottle:setpoint to 0.
+global minThrust is 1500.
+global gimPitch is 0.
+global gimYaw is 0.
+
+// PID loops phase 8
+set pidPit8 to pidLoop(0.01, 0, 0).
+set pidPit8:setpoint to 0.
+
+set pidYaw7 to pidLoop(0.01, 0, 0).
+set pidYaw7:setpoint to 0.
+
+set pidThrt to pidLoop(1, 0.001, 0.001).
+set pidThrt:setpoint to 0.
+
+// Write first line of burn log
+deletePath(Earth_edl_burn_log).
+local logline is "Time,".
+set logline to logline + "Phase,".
+set logline to logline + "Altitude,".
+set logline to logline + "Vertical speed,".
+set logline to logline + "Surface distance,".
+set logline to logline + "Surface speed,".
+set logline to logline + "Target pitch,".
+set logline to logline + "Pitch ang,".
+set logline to logline + "Pitch gimbal,".
+set logline to logline + "Target yaw,".
+set logline to logline + "Yaw ang,".
+set logline to logline + "Yaw gimbal,".
+set logline to logline + "Roll ang,".
+log logline to Earth_edl_burn_log.
 
 until alt:radar < 38 {
 
-    clearScreen.
-    print "Vert spd " + round(SS:verticalspeed).
-    print "Altitude " + round(alt:radar).
+    // Track current pitch/yaw/roll deviation
+    trkPitAng:remove(0).
+    trkYawAng:remove(0).
+    trkRolAng:remove(0).
+    trkPitAng:add(get_pit(SS:up)).
+    trkYawAng:add(get_yawnose(SS:up)).
+    trkRolAng:add(get_rollnose(landingPad:position:direction:inverse)).
 
-    set thr to max(0.01, pidThrottle:update(time:seconds, ((alt:radar - 30) / 10) + SS:verticalspeed)).
+    // Distance to pad
+    set srfDist to sqrt(padDist ^ 2 - (alt:radar / 1000) ^ 2).
+
+    if curPhase = 7 { // Flip - engine throttling up
+
+        if SLRA:thrust > minThrust {
+            set curphase to 8.
+        }
+
+    }
+
+    if curPhase = 8 { // Flip & burn - engine gimbal control
+
+        // set pitch and yaw gimbal
+        set gimPitch to pidPit8:update(time:seconds, trkPitAng[4]).
+
+        if SS:verticalspeed > -6 {
+            set curphase to 9.
+            lock throttle to thr.
+            SLRA:shutdown.
+        }
+
+    }
+
+    if curPhase = 9 { // Soft landing - engine gimbal control
+
+        // set pitch and yaw gimbal
+
+        // Set pilot control according to input
+        // set SS:control:fore to gimPitch.
+        // set SS:control:starboard to gimYaw.
+
+        // Set throttle
+        set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - 30) / 10) + SS:verticalspeed)).
+
+    }
+
+    clearScreen.
+    print "Phase     " + curPhase.
+    print "---------".
+    print "Altitude  " + round(alt:radar, 4).
+    print "Vrt speed " + round(SS:verticalspeed, 4).
+    print "Srf dist  " + round(srfDist, 4).
+    print "Srf speed " + round(SS:velocity:surface:mag, 4).
+    print "---------".
+    print "tarPitAng " + round(tarPitAng, 2).
+    print "curPitAng " + round(trkPitAng[4], 4).
+    print "gim Pitch " + round(gimPitch, 4).
+    print "---------".
+    print "tarYawAng " + round(tarYawAng, 2).
+    print "curYawAng " + round(trkYawAng[4], 4).
+    print "gim Yaw   " + round(gimYaw, 4).
+    print "---------".
+    print "tarRolAng " + round(tarRolAng, 2).
+    print "curRolAng " + round(trkRolAng[4], 4).
+    print "---------".
+
+    local logline is time:seconds + ",".
+    set logline to logline + curPhase + ",".
+    set logline to logline + round(alt:radar, 4) + ",".
+    set logline to logline + round(SS:verticalspeed, 4) + ",".
+    set logline to logline + round(srfDist, 4) + ",".
+    set logline to logline + round(SS:velocity:surface:mag, 4) + ",".
+    set logline to logline + round(tarPitAng, 4) + ",".
+    set logline to logline + round(trkPitAng[4], 4) + ",".
+    set logline to logline + round(gimPitch, 4) + ",".
+    set logline to logline + round(tarYawAng, 4) + ",".
+    set logline to logline + round(trkYawAng[4], 4) + ",".
+    set logline to logline + round(gimYaw, 4) + ",".
+    set logline to logline + round(trkRolAng[4], 4) + ",".
+    log logline to Earth_edl_burn_log.
 
 }
+
+
+// until SS:verticalspeed > -6 {
+
+//     lock steering to SS:up.
+//     lock throttle to 1.
+
+// }
+
+// RLCS:setfield("deploy angle", 0).
+// RRCS:setfield("deploy angle", 0).
+
+// SLRA:shutdown.
+// lock throttle to thr.
+// lock steering to SS:up.
+// legs on.
+
+// until alt:radar < 38 {
+
+//     clearScreen.
+//     print "Vert spd " + round(SS:verticalspeed).
+//     print "Altitude " + round(alt:radar).
+
+//     set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - 30) / 10) + SS:verticalspeed)).
+
+// }
