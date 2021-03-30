@@ -191,6 +191,7 @@ RRCS:setfield("deploy", true).
 
 // Set landing target of SpaceX Boca Chica landing pad
 global landingPad is latlng(26.0384, -97.1537).
+global padHeight is 7.
 
 // Set initial global values for the loop
 global curPitAng is get_pit(srfprograde).
@@ -663,6 +664,7 @@ until SLRA:thrust > minThrust {
 }
 
 set curphase to 8.
+// set tarPitAng to zenRetAng[4].
 set tarPitAng to 0.
 set tarYawAng to 0.
 
@@ -697,6 +699,14 @@ set pidPitPB:setpoint to 0.
 set pidYawPB to pidLoop(1, 0, 0.1).
 set pidYawPB:setpoint to 0.
 
+// Inclination pad bullseye
+global altPerSec is 0.66.
+global pbConstant is 0.15.
+global ssHeight is 38.
+global pbImpDist is 0.
+global pbTargAlt is 0.
+global targDelta is 0.
+
 global curPitDst is 0.
 global curYawDst is 0.
 global angShpPad is 0.
@@ -720,6 +730,9 @@ set logline to logline + "Yaw ang,".
 set logline to logline + "Yaw gimbal,".
 set logline to logline + "Roll ang,".
 log logline to Earth_edl_burn_log.
+
+// Temp fly by wire system
+global targAlt is 50.
 
 until padDist < 0.038 {
 
@@ -751,6 +764,17 @@ until padDist < 0.038 {
     trkYawVel:remove(0).
     trkYawVel:add((trkYawDst[4] - trkYawDst[2]) * stpMultip).
 
+    // Allow pilot to change target pitch, yaw and roll
+    if SS:control:pilottop <> 0 {
+        set tarPitAng to tarPitAng + (SS:control:pilotfore * 0.25).
+    }
+    if SS:control:pilotstarboard <> 0 {
+        set tarYawAng to tarYawAng + (SS:control:pilotstarboard * 0.25).
+    }
+    if SS:control:pilotfore <> 0 {
+        set targAlt to targAlt + (SS:control:pilottop * 0.25).
+    }
+
     if curPhase = 8 { // Flip & burn - engine gimbal control
 
         // set pitch and yaw gimbal
@@ -764,7 +788,7 @@ until padDist < 0.038 {
         if SS:verticalspeed > -6 {
             set curphase to 9.
             set tarRolAng to 0 - get_rollnose(north).
-            set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - 30) / 10) + SS:verticalspeed)).
+            set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - targAlt) / 10) + SS:verticalspeed)).
             lock throttle to thr.
             SLRA:shutdown.
             rcs on.
@@ -775,9 +799,14 @@ until padDist < 0.038 {
     if curPhase = 9 { // Soft landing - engine gimbal control
 
         // Set target angles to reach pad
-        // set tarPitAng to pidPitPB:update(time:seconds, trkPitDst[4]).
-        // set tarYawAng to pidYawPB:update(time:seconds, trkYawDst[4]).
-        set tarYawAng to 0 - 1.
+        // set pbTargAlt to alt:radar - padHeight - ssHeight.
+        // set pbSecsRem to pbTargAlt / altPerSec.
+        // set pbImpDist to trkPitVel[4] * pbSecsRem - trkPitDst[4].
+        // set targDelta to pbImpDist / pbSecsRem.
+        // set tarPitAng to targDelta / pbConstant.
+        // set pbImpDist to trkYawVel[4] * pbSecsRem - trkYawDst[4].
+        // set targDelta to pbImpDist / pbSecsRem.
+        // set tarYawAng to targDelta / pbConstant.
 
         // set pitch and yaw gimbal
         set gimPitch to pidPit9:update(time:seconds, trkPitAng[4] - tarPitAng).
@@ -792,14 +821,31 @@ until padDist < 0.038 {
         // Set throttle
         set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - 30) / 10) + SS:verticalspeed)).
 
+        if alt:radar < (padHeight + ssHeight) {
+            set curPhase to 10.
+        }
+
+    }
+
+    if curPhase = 10 {
+
+        // Do stuff?
+
     }
 
     clearScreen.
     print "Phase     " + curPhase.
     print "Step secs " + round(trkStpSec[4], 4).
     print "---------".
+    print "SS lat    " + round(SS:geoposition:lat, 4).
+    print "SS lng    " + round(SS:geoPosition:lng, 4).
+    print "LP head   " + round(landingPad:heading, 4).
+    print "SS bear   " + round(trkRolAng[4], 4).
+    print "---------".
     print "Altitude  " + round(alt:radar, 4).
+    print "Targ alt  " + round(targAlt, 2).
     print "Vrt speed " + round(SS:verticalspeed, 4).
+    print "srf dist  " + round(srfDist, 4).
     print "---------".
     print "Pit dist  " + round(trkPitDst[4], 4).
     print "Pit vel   " + round(trkPitVel[4], 4).
