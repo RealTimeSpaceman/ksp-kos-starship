@@ -299,9 +299,9 @@ global lrpQRcode is 0. // Temporary value used in the calculation
 
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
-global srpTargKM is 0.5.
-global srpFlrAlt is 1.2.
-global srpFinAlt is 1.
+global srpTargKM is 0.4.
+global srpFlrAlt is 1.25.
+global srpFinAlt is 1.2.
 global srfDist is 0.
 
 // Variables for propulsive landing
@@ -675,37 +675,32 @@ RRCS:setfield("deploy angle", 0).
 
 set tarRolAng to 0 - get_rollnose(north).
 
-// PID loops phase 8
-set pidPit8 to pidLoop(0.05, 0, 0.1).
-set pidPit8:setpoint to 0.
+// PID loops attitude
+set pidPitAtt to pidLoop(0.5, 0, 0.5).
+set pidPitAtt:setpoint to 0.
 
-set pidYaw8 to pidLoop(0.01, 0, 0.1).
-set pidYaw8:setpoint to 0.
+set pidYawAtt to pidLoop(0.5, 0, 0.5).
+set pidYawAtt:setpoint to 0.
 
-// PID loops phase 9
-set pidPit9 to pidLoop(0.1, 0, 0.1).
-set pidPit9:setpoint to 0.
+set pidRolAtt to pidLoop(1, 0, 0.5).
+set pidRolAtt:setpoint to 0.
 
-set pidYaw9 to pidLoop(0.1, 0, 0.1).
-set pidYaw9:setpoint to 0.
+// PID loops velocity
+set pidPitVel to pidLoop(0.5, 0, 0.1).
+set pidPitVel:setpoint to 0.
 
-set pidRol9 to pidLoop(0.1, 0, 0.1).
-set pidRol9:setpoint to 0.
+set pidYawVel to pidLoop(0.5, 0, 0.1).
+set pidYawVel:setpoint to 0.
 
-// PID loops pad bullseye
-set pidPitPB to pidLoop(1, 0, 0.1).
-set pidPitPB:setpoint to 0.
-
-set pidYawPB to pidLoop(1, 0, 0.1).
-set pidYawPB:setpoint to 0.
-
-// Inclination pad bullseye
+// Inclination pad targeting
 global altPerSec is 0.66.
-global pbConstant is 0.15.
 global ssHeight is 38.
-global pbImpDist is 0.
-global pbTargAlt is 0.
-global targDelta is 0.
+global ptSecsRem is 0.
+global ptTargAlt is 0.
+global tarPitVel is 0.
+global tarYawVel is 0.
+
+lock angCourse to vAng(north:vector, SS:prograde:vector).
 
 global curPitDst is 0.
 global curYawDst is 0.
@@ -721,18 +716,20 @@ set logline to logline + "Altitude,".
 set logline to logline + "Vertical speed,".
 set logline to logline + "Surface speed,".
 set logline to logline + "Pitch distance,".
-set logline to logline + "Yaw distance,".
-set logline to logline + "Target pitch,".
+set logline to logline + "Target pitch vel,".
+set logline to logline + "Pitch vel,".
+set logline to logline + "Target pitch ang,".
 set logline to logline + "Pitch ang,".
 set logline to logline + "Pitch gimbal,".
-set logline to logline + "Target yaw,".
+set logline to logline + "Yaw distance,".
+set logline to logline + "Target yaw vel,".
+set logline to logline + "Yaw vel,".
+set logline to logline + "Target yaw ang,".
 set logline to logline + "Yaw ang,".
 set logline to logline + "Yaw gimbal,".
+set logline to logline + "Target roll ang,".
 set logline to logline + "Roll ang,".
 log logline to Earth_edl_burn_log.
-
-// Temp fly by wire system
-global targAlt is 50.
 
 until padDist < 0.038 {
 
@@ -753,33 +750,24 @@ until padDist < 0.038 {
     set srfDist to 1000 * sqrt((landingPad:lng - SS:geoPosition:lng) ^ 2 + (landingPad:lat - SS:geoposition:lat) ^ 2).
     set angShpPad to landingPad:heading - trkRolAng[4].
     trkPitDst:remove(0).
-    trkPitDst:add(srfDist * (cos(angShpPad))).
+    trkPitDst:add(srfDist * (cos(angShpPad))). // m/s
     trkYawDst:remove(0).
-    trkYawDst:add(srfDist * (sin(angShpPad))).
+    trkYawDst:add(srfDist * (sin(angShpPad))). // m/s
 
     // Calculate velocities
-    local stpMultip is (1 / (trkStpSec[4] + trkStpSec[3])).
+    local angOffset is angCourse - trkRolAng[4].
     trkPitVel:remove(0).
-    trkPitVel:add((trkPitDst[4] - trkPitDst[2]) * stpMultip).
+    trkPitVel:add(0 - SS:velocity:surface:mag * cos(angOffset)).
     trkYawVel:remove(0).
-    trkYawVel:add((trkYawDst[4] - trkYawDst[2]) * stpMultip).
-
-    // Allow pilot to change target pitch, yaw and roll
-    if SS:control:pilottop <> 0 {
-        set tarPitAng to tarPitAng + (SS:control:pilotfore * 0.25).
-    }
-    if SS:control:pilotstarboard <> 0 {
-        set tarYawAng to tarYawAng + (SS:control:pilotstarboard * 0.25).
-    }
-    if SS:control:pilotfore <> 0 {
-        set targAlt to targAlt + (SS:control:pilottop * 0.25).
-    }
+    trkYawVel:add(0 - SS:velocity:surface:mag * sin(angOffset)).
 
     if curPhase = 8 { // Flip & burn - engine gimbal control
 
         // set pitch and yaw gimbal
-        set gimPitch to pidPit8:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set gimYaw to pidYaw8:update(time:seconds, trkYawAng[4] - tarYawAng).
+        //set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4]).
+        set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
+        set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
+        set gimRoll to pidRolAtt:update(time:seconds, trkRolAng[4] - tarRolAng).
 
         // Set pilot control according to input
         set SS:control:pitch to gimPitch.
@@ -788,30 +776,26 @@ until padDist < 0.038 {
         if SS:verticalspeed > -6 {
             set curphase to 9.
             set tarRolAng to 0 - get_rollnose(north).
-            set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - targAlt) / 10) + SS:verticalspeed)).
+            set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
             lock throttle to thr.
-            SLRA:shutdown.
+            // SLRA:shutdown.
             rcs on.
         }
 
     }
 
-    if curPhase = 9 { // Soft landing - engine gimbal control
+    if curPhase = 9 { // Translate to pad - engine gimbal control
 
-        // Set target angles to reach pad
-        // set pbTargAlt to alt:radar - padHeight - ssHeight.
-        // set pbSecsRem to pbTargAlt / altPerSec.
-        // set pbImpDist to trkPitVel[4] * pbSecsRem - trkPitDst[4].
-        // set targDelta to pbImpDist / pbSecsRem.
-        // set tarPitAng to targDelta / pbConstant.
-        // set pbImpDist to trkYawVel[4] * pbSecsRem - trkYawDst[4].
-        // set targDelta to pbImpDist / pbSecsRem.
-        // set tarYawAng to targDelta / pbConstant.
+        // Set target velocities to reach pad
+        set ptTargAlt to alt:radar - padHeight - ssHeight.
+        set ptSecsRem to ptTargAlt / altPerSec.
 
         // set pitch and yaw gimbal
-        set gimPitch to pidPit9:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set gimYaw to pidYaw9:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set gimRoll to pidRol9:update(time:seconds, trkRolAng[4] - tarRolAng).
+        set tarPitAng to 0 - pidPitVel:update(time:seconds, trkPitVel[4]).
+        set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
+        set tarYawAng to 0 - pidYawVel:update(time:seconds, trkYawVel[4]).
+        set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
+        set gimRoll to pidRolAtt:update(time:seconds, trkRolAng[4] - tarRolAng).
 
         // Set pilot control according to input
         set SS:control:pitch to gimPitch.
@@ -819,17 +803,17 @@ until padDist < 0.038 {
         set SS:control:roll to gimRoll.
 
         // Set throttle
-        set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - 30) / 10) + SS:verticalspeed)).
+        set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
 
-        if alt:radar < (padHeight + ssHeight) {
-            set curPhase to 10.
-        }
+        // if alt:radar < (padHeight + ssHeight) {
+        //     set curPhase to 10.
+        // }
 
     }
 
-    if curPhase = 10 {
+    if curPhase = 10 { // Soft landing
 
-        // Do stuff?
+        // Lower to pad
 
     }
 
@@ -840,10 +824,12 @@ until padDist < 0.038 {
     print "SS lat    " + round(SS:geoposition:lat, 4).
     print "SS lng    " + round(SS:geoPosition:lng, 4).
     print "LP head   " + round(landingPad:heading, 4).
-    print "SS bear   " + round(trkRolAng[4], 4).
+    print "SS head   " + round(trkRolAng[4], 4).
+    print "SS course " + round(angCourse, 4).
+    print "Srf speed " + round(SS:velocity:surface:mag, 4).
+    print "ptSecsRem " + round(ptSecsRem, 4).
     print "---------".
     print "Altitude  " + round(alt:radar, 4).
-    print "Targ alt  " + round(targAlt, 2).
     print "Vrt speed " + round(SS:verticalspeed, 4).
     print "srf dist  " + round(srfDist, 4).
     print "---------".
@@ -870,13 +856,18 @@ until padDist < 0.038 {
     set logline to logline + round(SS:verticalspeed, 4) + ",".
     set logline to logline + round(SS:velocity:surface:mag, 4) + ",".
     set logline to logline + round(trkPitDst[4], 4) + ",".
-    set logline to logline + round(trkYawDst[4], 4) + ",".
+    set logline to logline + round(tarPitVel, 4) + ",".
+    set logline to logline + round(trkPitVel[4], 4) + ",".
     set logline to logline + round(tarPitAng, 4) + ",".
     set logline to logline + round(trkPitAng[4], 4) + ",".
     set logline to logline + round(gimPitch, 4) + ",".
+    set logline to logline + round(trkYawDst[4], 4) + ",".
+    set logline to logline + round(tarYawVel, 4) + ",".
+    set logline to logline + round(trkYawVel[4], 4) + ",".
     set logline to logline + round(tarYawAng, 4) + ",".
     set logline to logline + round(trkYawAng[4], 4) + ",".
     set logline to logline + round(gimYaw, 4) + ",".
+    set logline to logline + round(tarRolAng, 4) + ",".
     set logline to logline + round(trkRolAng[4], 4) + ",".
     log logline to Earth_edl_burn_log.
 
