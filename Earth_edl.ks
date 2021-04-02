@@ -1,13 +1,75 @@
 
 //---------------------------------------------------------------------------------------------------------------------
-// FUNCTIONS
+// LIBRARY FUNCTIONS
 //---------------------------------------------------------------------------------------------------------------------
 
-FUNCTION current_mach_number {
+function current_mach_number {
     // from nuggreat
     LOCAL currentPresure IS BODY:ATM:ALTITUDEPRESSURE(SHIP:ALTITUDE).
     RETURN CHOOSE SQRT(2 / BODY:ATM:ADIABATICINDEX * SHIP:Q / currentPresure) IF currentPresure > 0 ELSE 0.
 }
+
+function compass_for {
+  parameter ves is ship,thing is "default".
+
+  local pointing is ves:facing:forevector.
+  if not thing:istype("string") {
+    set pointing to type_to_vector(ves,thing).
+  }
+
+  local east is east_for(ves).
+
+  local trig_x is vdot(ves:north:vector, pointing).
+  local trig_y is vdot(east, pointing).
+
+  local result is arctan2(trig_y, trig_x).
+
+  if result < 0 {
+    return 360 + result.
+  } else {
+    return result.
+  }
+}
+
+function bearing_between {
+  parameter ves,thing_1,thing_2.
+
+  local vec_1 is type_to_vector(ves,thing_1).
+  local vec_2 is type_to_vector(ves,thing_2).
+
+  local fake_north is vxcl(ves:up:vector, vec_1).
+  local fake_east is vcrs(ves:up:vector, fake_north).
+
+  local trig_x is vdot(fake_north, vec_2).
+  local trig_y is vdot(fake_east, vec_2).
+
+  return arctan2(trig_y, trig_x).
+}
+
+function east_for {
+  parameter ves is ship.
+
+  return vcrs(ves:up:vector, ves:north:vector).
+}
+
+function type_to_vector {
+  parameter ves,thing.
+  if thing:istype("vector") {
+    return thing:normalized.
+  } else if thing:istype("direction") {
+    return thing:forevector.
+  } else if thing:istype("vessel") or thing:istype("part") {
+    return thing:facing:forevector.
+  } else if thing:istype("geoposition") or thing:istype("waypoint") {
+    return (thing:position - ves:position):normalized.
+  } else {
+    print "type: " + thing:typename + " is not recognized by lib_navball".
+  }
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// FUNCTIONS
+//---------------------------------------------------------------------------------------------------------------------
 
 function get_pit {
     parameter rTarget.
@@ -269,9 +331,6 @@ set pidRol5:setpoint to 0.
 set pidYaw6 to pidLoop(0.1, 0, 0.1).
 set pidYaw6:setpoint to 0.
 
-set pidThrt to pidLoop(1, 0.001, 0.001).
-set pidThrt:setpoint to 0.
-
 // Set target values
 global tarPitAng to 0.
 global tarYawAng to 0.
@@ -300,7 +359,7 @@ global lrpQRcode is 0. // Temporary value used in the calculation
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
 global srpTargKM is 0.4.
-global srpFlrAlt is 1.25.
+global srpFlrAlt is 1.2.
 global srpFinAlt is 1.2.
 global srfDist is 0.
 
@@ -583,7 +642,7 @@ until SLRA:thrust > minThrust {
 
         set csfPitch to pidPit5:update(time:seconds, trkPitAng[4] - tarPitAng).
         set csfYaw to pidYaw6:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set csfRoll to pidRol5:update(time:seconds, trkRolAng[4]).
+        // set csfRoll to pidRol5:update(time:seconds, trkRolAng[4]).
 
     }
 
@@ -673,20 +732,24 @@ FRCS:setfield("deploy angle", 0).
 RLCS:setfield("deploy angle", 0).
 RRCS:setfield("deploy angle", 0).
 
-set tarRolAng to 0 - get_rollnose(north).
+set tarRolAng to compass_for(SS, SS:facing:topvector:direction).
+
+// PID loop throttle
+set pidThrt to pidLoop(1, 0.001, 0.001).
+set pidThrt:setpoint to 0.
 
 // PID loops attitude
-set pidPitAtt to pidLoop(0.5, 0, 0.5).
+set pidPitAtt to pidLoop(0.5, 0, 1).
 set pidPitAtt:setpoint to 0.
 
 set pidYawAtt to pidLoop(0.5, 0, 0.5).
 set pidYawAtt:setpoint to 0.
 
-set pidRolAtt to pidLoop(1, 0, 0.5).
+set pidRolAtt to pidLoop(0.1, 0, 0.1).
 set pidRolAtt:setpoint to 0.
 
 // PID loops velocity
-set pidPitVel to pidLoop(0.5, 0, 0.1).
+set pidPitVel to pidLoop(10, 0, 0.1).
 set pidPitVel:setpoint to 0.
 
 set pidYawVel to pidLoop(0.5, 0, 0.1).
@@ -700,7 +763,8 @@ global ptTargAlt is 0.
 global tarPitVel is 0.
 global tarYawVel is 0.
 
-lock angCourse to vAng(north:vector, SS:velocity:surface).
+// lock angCourse to compass_for(SS, srfprograde).
+lock angHead to compass_for(SS, SS:facing:topvector:direction).
 
 global curPitDst is 0.
 global curYawDst is 0.
@@ -744,22 +808,33 @@ until padDist < 0.038 {
     trkRolAng:remove(0).
     trkPitAng:add(get_pit(SS:up)).
     trkYawAng:add(get_yawnose(SS:up)).
-    trkRolAng:add(0 - get_rollnose(north)).
+    trkRolAng:add(angHead).
 
     // Track pitch and yaw distances
     set srfDist to 1000 * sqrt((landingPad:lng - SS:geoPosition:lng) ^ 2 + (landingPad:lat - SS:geoposition:lat) ^ 2).
     set angShpPad to landingPad:heading - trkRolAng[4].
     trkPitDst:remove(0).
-    trkPitDst:add(srfDist * (cos(angShpPad))). // m/s
+    trkPitDst:add(0 - srfDist * (cos(angShpPad))). // m/s
     trkYawDst:remove(0).
     trkYawDst:add(srfDist * (sin(angShpPad))). // m/s
 
     // Calculate velocities
-    local angOffset is angCourse - trkRolAng[4].
+    // local angOffset is angCourse - trkRolAng[4].
+    // trkPitVel:remove(0).
+    // trkPitVel:add(0 - SS:velocity:surface:mag * cos(angOffset)).
+    // trkYawVel:remove(0).
+    // trkYawVel:add(0 - SS:velocity:surface:mag * sin(angOffset)).
+    local stpMultip is (1 / (trkStpSec[4] + trkStpSec[3])).
+    // trkPitVel:remove(0).
+    // trkPitVel:add((trkPitAng[4] - trkPitAng[2]) * stpMultip).
+    // trkYawVel:remove(0).
+    // trkYawVel:add((trkYawAng[4] - trkYawAng[2]) * stpMultip).
     trkPitVel:remove(0).
-    trkPitVel:add(0 - SS:velocity:surface:mag * cos(angOffset)).
+    trkPitVel:add((trkPitDst[4] - trkPitDst[3]) / trkStpSec[4]).
     trkYawVel:remove(0).
-    trkYawVel:add(0 - SS:velocity:surface:mag * sin(angOffset)).
+    trkYawVel:add((trkYawDst[4] - trkYawDst[3]) / trkStpSec[4]).
+    trkRolVel:remove(0).
+    trkRolVel:add((trkRolAng[4] - trkRolAng[2]) * stpMultip).
 
     if curPhase = 8 { // Flip & burn - engine gimbal control
 
@@ -767,15 +842,16 @@ until padDist < 0.038 {
         //set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4]).
         set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
         set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set gimRoll to pidRolAtt:update(time:seconds, trkRolAng[4] - tarRolAng).
+        set gimRoll to pidRolAtt:update(time:seconds, trkRolVel[4]).
 
         // Set pilot control according to input
         set SS:control:pitch to gimPitch.
         set SS:control:yaw to 0 - gimYaw.
+        set SS:control:roll to 0 - gimRoll.
 
         if SS:verticalspeed > -6 {
             set curphase to 9.
-            set tarRolAng to 0 - get_rollnose(north).
+            set tarRolAng to compass_for(SS, SS:facing:topvector:direction).
             set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
             lock throttle to thr.
             // SLRA:shutdown.
@@ -789,18 +865,19 @@ until padDist < 0.038 {
         // Set target velocities to reach pad
         set ptTargAlt to alt:radar - padHeight - ssHeight.
         set ptSecsRem to ptTargAlt / altPerSec.
+        set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
 
         // set pitch and yaw gimbal
         set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4]).
+        // set tarYawAng to pidYawVel:update(time:seconds, trkYawVel[4]).
         set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set tarYawAng to pidYawVel:update(time:seconds, trkYawVel[4]).
         set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set gimRoll to pidRolAtt:update(time:seconds, trkRolAng[4] - tarRolAng).
+        set gimRoll to pidRolAtt:update(time:seconds, trkRolVel[4]).
 
         // Set pilot control according to input
         set SS:control:pitch to gimPitch.
         set SS:control:yaw to 0 - gimYaw.
-        set SS:control:roll to gimRoll.
+        set SS:control:roll to 0 - gimRoll.
 
         // Set throttle
         set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
@@ -821,11 +898,8 @@ until padDist < 0.038 {
     print "Phase     " + curPhase.
     print "Step secs " + round(trkStpSec[4], 4).
     print "---------".
-    print "SS lat    " + round(SS:geoposition:lat, 4).
-    print "SS lng    " + round(SS:geoPosition:lng, 4).
-    print "LP head   " + round(landingPad:heading, 4).
-    print "SS head   " + round(trkRolAng[4], 4).
-    print "SS course " + round(angCourse, 4).
+    print "SS head   " + round(angHead, 4).
+    // print "SS course " + round(angCourse, 4).
     print "Srf speed " + round(SS:velocity:surface:mag, 4).
     print "ptSecsRem " + round(ptSecsRem, 4).
     print "---------".
@@ -834,20 +908,23 @@ until padDist < 0.038 {
     print "srf dist  " + round(srfDist, 4).
     print "---------".
     print "Pit dist  " + round(trkPitDst[4], 4).
-    print "Pit vel   " + round(trkPitVel[4], 4).
+    print "tarPitVel " + round(tarPitVel, 4).
+    print "curPitVel " + round(trkPitVel[4], 4).
     print "tarPitAng " + round(tarPitAng, 2).
     print "curPitAng " + round(trkPitAng[4], 4).
     print "gim Pitch " + round(gimPitch, 4).
     print "---------".
     print "Yaw dist  " + round(trkYawDst[4], 4).
-    print "Yaw vel   " + round(trkYawVel[4], 4).
+    print "curYawVel " + round(trkYawVel[4], 4).
     print "tarYawAng " + round(tarYawAng, 2).
     print "curYawAng " + round(trkYawAng[4], 4).
     print "gim Yaw   " + round(gimYaw, 4).
     print "---------".
     print "pad Head  " + round(landingPad:heading, 4).
+    print "Roll vel  " + round(trkRolVel[4], 4).
     print "tarRolAng " + round(tarRolAng, 4).
     print "curRolAng " + round(trkRolAng[4], 4).
+    print "gim Roll  " + round(gimRoll, 4).
     print "---------".
 
     local logline is time:seconds + ",".
