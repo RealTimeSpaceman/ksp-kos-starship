@@ -700,7 +700,7 @@ global ptTargAlt is 0.
 global tarPitVel is 0.
 global tarYawVel is 0.
 
-lock angCourse to vAng(north:vector, SS:prograde:vector).
+lock angCourse to vAng(north:vector, SS:velocity:surface).
 
 global curPitDst is 0.
 global curYawDst is 0.
@@ -791,9 +791,9 @@ until padDist < 0.038 {
         set ptSecsRem to ptTargAlt / altPerSec.
 
         // set pitch and yaw gimbal
-        set tarPitAng to 0 - pidPitVel:update(time:seconds, trkPitVel[4]).
+        set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4]).
         set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set tarYawAng to 0 - pidYawVel:update(time:seconds, trkYawVel[4]).
+        set tarYawAng to pidYawVel:update(time:seconds, trkYawVel[4]).
         set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
         set gimRoll to pidRolAtt:update(time:seconds, trkRolAng[4] - tarRolAng).
 
