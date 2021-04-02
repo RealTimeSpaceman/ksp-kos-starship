@@ -749,10 +749,10 @@ set pidRolAtt to pidLoop(0.1, 0, 0.1).
 set pidRolAtt:setpoint to 0.
 
 // PID loops velocity
-set pidPitVel to pidLoop(10, 0, 0.1).
+set pidPitVel to pidLoop(1, 0, 0.1).
 set pidPitVel:setpoint to 0.
 
-set pidYawVel to pidLoop(0.5, 0, 0.1).
+set pidYawVel to pidLoop(1, 0, 0.1).
 set pidYawVel:setpoint to 0.
 
 // Inclination pad targeting
@@ -838,8 +838,15 @@ until padDist < 0.038 {
 
     if curPhase = 8 { // Flip & burn - engine gimbal control
 
+        // Set target velocities to reach pad
+        set ptTargAlt to alt:radar - padHeight - ssHeight.
+        set ptSecsRem to ptTargAlt / altPerSec.
+        set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
+        set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
+
         // set pitch and yaw gimbal
-        //set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4]).
+        set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4] - tarPitVel).
+        set tarYawAng to 0 - pidYawVel:update(time:seconds, trkYawVel[4] - tarYawVel).
         set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
         set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
         set gimRoll to pidRolAtt:update(time:seconds, trkRolVel[4]).
@@ -866,10 +873,11 @@ until padDist < 0.038 {
         set ptTargAlt to alt:radar - padHeight - ssHeight.
         set ptSecsRem to ptTargAlt / altPerSec.
         set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
+        set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
 
         // set pitch and yaw gimbal
-        set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4]).
-        // set tarYawAng to pidYawVel:update(time:seconds, trkYawVel[4]).
+        set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4] - tarPitVel).
+        set tarYawAng to 0 - pidYawVel:update(time:seconds, trkYawVel[4] - tarYawVel).
         set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
         set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
         set gimRoll to pidRolAtt:update(time:seconds, trkRolVel[4]).
@@ -915,6 +923,7 @@ until padDist < 0.038 {
     print "gim Pitch " + round(gimPitch, 4).
     print "---------".
     print "Yaw dist  " + round(trkYawDst[4], 4).
+    print "tarYawVel " + round(tarYawVel, 4).
     print "curYawVel " + round(trkYawVel[4], 4).
     print "tarYawAng " + round(tarYawAng, 2).
     print "curYawAng " + round(trkYawAng[4], 4).
