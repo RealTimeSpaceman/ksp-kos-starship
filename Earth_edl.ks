@@ -738,7 +738,7 @@ set pidThrt to pidLoop(1, 0.001, 0.001).
 set pidThrt:setpoint to 0.
 
 // PID loops attitude
-set pidPitAtt8 to pidLoop(0.1, 0, 0.5).
+set pidPitAtt8 to pidLoop(0.5, 0, 0.5).
 set pidPitAtt8:setpoint to 0.
 
 set pidYawAtt8 to pidLoop(0.5, 0, 0.5).
@@ -747,7 +747,7 @@ set pidYawAtt8:setpoint to 0.
 set pidRolAtt8 to pidLoop(0.5, 0, 0.1).
 set pidRolAtt8:setpoint to 0.
 
-set pidPitAtt9 to pidLoop(0.05, 0, 0.5).
+set pidPitAtt9 to pidLoop(0.5, 0.1, 0.5).
 set pidPitAtt9:setpoint to 0.
 
 set pidYawAtt9 to pidLoop(0.5, 0, 0.5).
@@ -757,7 +757,7 @@ set pidRolAtt9 to pidLoop(0.5, 0, 0.1).
 set pidRolAtt9:setpoint to 0.
 
 // PID loops angle
-set pidPitAng to pidLoop(5, 0, 1).
+set pidPitAng to pidLoop(10, 0, 1).
 set pidPitAng:setpoint to 0.
 
 set pidYawAng to pidLoop(1, 0, 0.1).
@@ -771,10 +771,7 @@ set pidYawVel to pidLoop(1, 0, 0.1).
 set pidYawVel:setpoint to 0.
 
 // Inclination pad targeting
-global altPerSec is 0.66.
-global ssHeight is 38.
-global ptSecsRem is 0.
-global ptTargAlt is 0.
+global ssHeight is 37.
 global tarPitVel is 0.
 global tarYawVel is 0.
 
@@ -810,7 +807,7 @@ set logline to logline + "Target roll ang,".
 set logline to logline + "Roll ang,".
 log logline to Earth_edl_burn_log.
 
-until padDist < 0.036 {
+until alt:radar < ssHeight {
 
     local oldTime is curTime.
     set curTime to time:seconds.
@@ -834,16 +831,7 @@ until padDist < 0.036 {
     trkYawDst:add(srfDist * (sin(angShpPad))). // m/s
 
     // Calculate velocities
-    // local angOffset is angCourse - trkRolAng[4].
-    // trkPitVel:remove(0).
-    // trkPitVel:add(0 - SS:velocity:surface:mag * cos(angOffset)).
-    // trkYawVel:remove(0).
-    // trkYawVel:add(0 - SS:velocity:surface:mag * sin(angOffset)).
     local stpMultip is (1 / (trkStpSec[4] + trkStpSec[3])).
-    // trkPitVel:remove(0).
-    // trkPitVel:add((trkPitAng[4] - trkPitAng[2]) * stpMultip).
-    // trkYawVel:remove(0).
-    // trkYawVel:add((trkYawAng[4] - trkYawAng[2]) * stpMultip).
     trkPitVel:remove(0).
     trkPitVel:add((trkPitDst[4] - trkPitDst[3]) / trkStpSec[4]).
     trkYawVel:remove(0).
@@ -851,29 +839,23 @@ until padDist < 0.036 {
     trkRolVel:remove(0).
     trkRolVel:add((trkRolAng[4] - trkRolAng[2]) * stpMultip).
 
-    if curPhase = 8 { // Flip & burn - engine gimbal control
+    // Set target velocities to reach pad
+    set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
+    set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
 
-        // Set target velocities to reach pad
-        set ptTargAlt to alt:radar - padHeight - ssHeight.
-        set ptSecsRem to ptTargAlt / altPerSec.
-        set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
-        set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
+    // Set target angles to reach pad
+    set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
+    set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
+
+    if curPhase = 8 { // Flip & burn - engine gimbal control plus lower flaps
 
         // set pitch and yaw gimbal
-        set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
-        set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
-        set gimPitch to pidPitAtt8:update(time:seconds, trkPitAng[4] - tarPitAng).
+        set gimPitch to pidPitAtt9:update(time:seconds, trkPitAng[4] - tarPitAng).
         set gimYaw to pidYawAtt8:update(time:seconds, trkYawAng[4] - tarYawAng).
         set gimRoll to pidRolAtt8:update(time:seconds, trkRolVel[4]).
 
-        // Set pilot control according to input
-        set SS:control:pitch to gimPitch.
-        set SS:control:yaw to 0 - gimYaw.
-        set SS:control:roll to 0 - gimRoll.
-
         RLCS:setfield("deploy angle", gimPitch * 2 + trmIni).
         RRCS:setfield("deploy angle", gimPitch * 2 + trmIni).
-
 
         if SS:verticalspeed > -6 {
             set curphase to 9.
@@ -889,23 +871,10 @@ until padDist < 0.036 {
 
     if curPhase = 9 { // Translate to pad - engine gimbal control
 
-        // Set target velocities to reach pad
-        set ptTargAlt to alt:radar - padHeight - ssHeight.
-        set ptSecsRem to ptTargAlt / altPerSec.
-        set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
-        set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
-
         // set pitch and yaw gimbal
-        set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
-        set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
         set gimPitch to pidPitAtt9:update(time:seconds, trkPitAng[4] - tarPitAng).
         set gimYaw to pidYawAtt9:update(time:seconds, trkYawAng[4] - tarYawAng).
         set gimRoll to pidRolAtt9:update(time:seconds, trkRolVel[4]).
-
-        // Set pilot control according to input
-        set SS:control:pitch to gimPitch.
-        set SS:control:yaw to 0 - gimYaw.
-        set SS:control:roll to 0 - gimRoll.
 
         // Set throttle
         set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
@@ -920,28 +889,20 @@ until padDist < 0.036 {
 
     if curPhase = 10 { // Soft landing - engine gimbal control
 
-        // Set target velocities to reach pad
-        set ptTargAlt to alt:radar - padHeight - ssHeight.
-        set ptSecsRem to ptTargAlt / altPerSec.
-        set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
-        set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
-
         // set pitch and yaw gimbal
-        set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
-        set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
         set gimPitch to pidPitAtt9:update(time:seconds, trkPitAng[4] - tarPitAng).
         set gimYaw to pidYawAtt9:update(time:seconds, trkYawAng[4] - tarYawAng).
         set gimRoll to pidRolAtt9:update(time:seconds, trkRolVel[4]).
-
-        // Set pilot control according to input
-        set SS:control:pitch to gimPitch.
-        set SS:control:yaw to 0 - gimYaw.
-        set SS:control:roll to 0 - gimRoll.
 
         // Set throttle
         set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight + 10) / 10) + SS:verticalspeed)).
 
     }
+
+    // Set pilot control according to input
+    set SS:control:pitch to gimPitch.
+    set SS:control:yaw to 0 - gimYaw.
+    set SS:control:roll to 0 - gimRoll.
 
     clearScreen.
     print "Phase     " + curPhase.
