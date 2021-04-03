@@ -358,7 +358,7 @@ global lrpQRcode is 0. // Temporary value used in the calculation
 
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
-global srpTargKM is 0.3.
+global srpTargKM is 0.25.
 global srpFlrAlt is 1.2.
 global srpFinAlt is 1.2.
 global srfDist is 0.
@@ -726,11 +726,10 @@ set curphase to 8.
 // set tarPitAng to zenRetAng[4].
 set tarPitAng to 0.
 set tarYawAng to 0.
+rcs on.
 
 FLCS:setfield("deploy angle", 0).
 FRCS:setfield("deploy angle", 0).
-RLCS:setfield("deploy angle", 0).
-RRCS:setfield("deploy angle", 0).
 
 set tarRolAng to compass_for(SS, SS:facing:topvector:direction).
 
@@ -739,33 +738,33 @@ set pidThrt to pidLoop(1, 0.001, 0.001).
 set pidThrt:setpoint to 0.
 
 // PID loops attitude
-set pidPitAtt8 to pidLoop(0.5, 0, 0.5).
+set pidPitAtt8 to pidLoop(0.1, 0, 0.5).
 set pidPitAtt8:setpoint to 0.
 
 set pidYawAtt8 to pidLoop(0.5, 0, 0.5).
 set pidYawAtt8:setpoint to 0.
 
-set pidRolAtt8 to pidLoop(0.1, 0, 0.1).
+set pidRolAtt8 to pidLoop(0.5, 0, 0.1).
 set pidRolAtt8:setpoint to 0.
 
-set pidPitAtt9 to pidLoop(0.5, 0, 0.5).
+set pidPitAtt9 to pidLoop(0.05, 0, 0.5).
 set pidPitAtt9:setpoint to 0.
 
 set pidYawAtt9 to pidLoop(0.5, 0, 0.5).
 set pidYawAtt9:setpoint to 0.
 
-set pidRolAtt9 to pidLoop(0.1, 0, 0.1).
+set pidRolAtt9 to pidLoop(0.5, 0, 0.1).
 set pidRolAtt9:setpoint to 0.
 
 // PID loops angle
-set pidPitAng to pidLoop(5, 0, 0.1).
+set pidPitAng to pidLoop(5, 0, 1).
 set pidPitAng:setpoint to 0.
 
 set pidYawAng to pidLoop(1, 0, 0.1).
 set pidYawAng:setpoint to 0.
 
 // PID loops velocity
-set pidPitVel to pidLoop(1, 0, 0.1).
+set pidPitVel to pidLoop(0.75, 0, 7.5).
 set pidPitVel:setpoint to 0.
 
 set pidYawVel to pidLoop(1, 0, 0.1).
@@ -811,7 +810,7 @@ set logline to logline + "Target roll ang,".
 set logline to logline + "Roll ang,".
 log logline to Earth_edl_burn_log.
 
-until padDist < 0.038 {
+until padDist < 0.036 {
 
     local oldTime is curTime.
     set curTime to time:seconds.
@@ -872,13 +871,18 @@ until padDist < 0.038 {
         set SS:control:yaw to 0 - gimYaw.
         set SS:control:roll to 0 - gimRoll.
 
+        RLCS:setfield("deploy angle", gimPitch * 2 + trmIni).
+        RRCS:setfield("deploy angle", gimPitch * 2 + trmIni).
+
+
         if SS:verticalspeed > -6 {
             set curphase to 9.
             set tarRolAng to compass_for(SS, SS:facing:topvector:direction).
             set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
             lock throttle to thr.
+            RLCS:setfield("deploy angle", 0).
+            RRCS:setfield("deploy angle", 0).
             // SLRA:shutdown.
-            rcs on.
         }
 
     }
@@ -906,15 +910,36 @@ until padDist < 0.038 {
         // Set throttle
         set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight - padHeight) / 10) + SS:verticalspeed)).
 
-        // if alt:radar < (padHeight + ssHeight) {
-        //     set curPhase to 10.
-        // }
+        if trkPitDst[4] < 0.05 and abs(trkPitVel[4]) < 0.003 {
+            set curPhase to 10.
+            rcs off.
+            gear on.
+        }
 
     }
 
-    if curPhase = 10 { // Soft landing
+    if curPhase = 10 { // Soft landing - engine gimbal control
 
-        // Lower to pad
+        // Set target velocities to reach pad
+        set ptTargAlt to alt:radar - padHeight - ssHeight.
+        set ptSecsRem to ptTargAlt / altPerSec.
+        set tarPitVel to pidPitVel:update(time:seconds, trkPitDst[4]).
+        set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
+
+        // set pitch and yaw gimbal
+        set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
+        set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
+        set gimPitch to pidPitAtt9:update(time:seconds, trkPitAng[4] - tarPitAng).
+        set gimYaw to pidYawAtt9:update(time:seconds, trkYawAng[4] - tarYawAng).
+        set gimRoll to pidRolAtt9:update(time:seconds, trkRolVel[4]).
+
+        // Set pilot control according to input
+        set SS:control:pitch to gimPitch.
+        set SS:control:yaw to 0 - gimYaw.
+        set SS:control:roll to 0 - gimRoll.
+
+        // Set throttle
+        set thr to max(0.01, pidThrt:update(time:seconds, ((alt:radar - ssHeight + 10) / 10) + SS:verticalspeed)).
 
     }
 
@@ -925,7 +950,7 @@ until padDist < 0.038 {
     print "SS head   " + round(angHead, 4).
     // print "SS course " + round(angCourse, 4).
     print "Srf speed " + round(SS:velocity:surface:mag, 4).
-    print "ptSecsRem " + round(ptSecsRem, 4).
+    // print "ptSecsRem " + round(ptSecsRem, 4).
     print "---------".
     print "Altitude  " + round(alt:radar, 4).
     print "Vrt speed " + round(SS:verticalspeed, 4).
