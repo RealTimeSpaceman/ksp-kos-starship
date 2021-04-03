@@ -747,7 +747,7 @@ set pidYawAtt8:setpoint to 0.
 set pidRolAtt8 to pidLoop(0.5, 0, 0.1).
 set pidRolAtt8:setpoint to 0.
 
-set pidPitAtt9 to pidLoop(0.5, 0.1, 0.5).
+set pidPitAtt9 to pidLoop(0.5, 0, 0.5).
 set pidPitAtt9:setpoint to 0.
 
 set pidYawAtt9 to pidLoop(0.5, 0, 0.5).
