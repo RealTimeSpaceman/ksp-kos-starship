@@ -358,7 +358,7 @@ global lrpQRcode is 0. // Temporary value used in the calculation
 
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
-global srpTargKM is 0.4.
+global srpTargKM is 0.3.
 global srpFlrAlt is 1.2.
 global srpFinAlt is 1.2.
 global srfDist is 0.
@@ -485,7 +485,7 @@ until SLRA:thrust > minThrust {
     } else {
 
         // Set pitch for range to pad
-        set srfDist to sqrt(padDist ^ 2 - (alt:radar / 1000) ^ 2).
+        set srfDist to sqrt(abs(padDist ^ 2 - (alt:radar / 1000) ^ 2)).
         set adjAlt to (alt:radar / 1000) - srpFinAlt.
         set adjKM to (srfDist - srpTargKM).
         set tarPitAng to 90 - ((adjKM / adjAlt) / srpConst).
@@ -739,14 +739,30 @@ set pidThrt to pidLoop(1, 0.001, 0.001).
 set pidThrt:setpoint to 0.
 
 // PID loops attitude
-set pidPitAtt to pidLoop(0.5, 0, 1).
-set pidPitAtt:setpoint to 0.
+set pidPitAtt8 to pidLoop(0.5, 0, 0.5).
+set pidPitAtt8:setpoint to 0.
 
-set pidYawAtt to pidLoop(0.5, 0, 0.5).
-set pidYawAtt:setpoint to 0.
+set pidYawAtt8 to pidLoop(0.5, 0, 0.5).
+set pidYawAtt8:setpoint to 0.
 
-set pidRolAtt to pidLoop(0.1, 0, 0.1).
-set pidRolAtt:setpoint to 0.
+set pidRolAtt8 to pidLoop(0.1, 0, 0.1).
+set pidRolAtt8:setpoint to 0.
+
+set pidPitAtt9 to pidLoop(0.5, 0, 0.5).
+set pidPitAtt9:setpoint to 0.
+
+set pidYawAtt9 to pidLoop(0.5, 0, 0.5).
+set pidYawAtt9:setpoint to 0.
+
+set pidRolAtt9 to pidLoop(0.1, 0, 0.1).
+set pidRolAtt9:setpoint to 0.
+
+// PID loops angle
+set pidPitAng to pidLoop(5, 0, 0.1).
+set pidPitAng:setpoint to 0.
+
+set pidYawAng to pidLoop(1, 0, 0.1).
+set pidYawAng:setpoint to 0.
 
 // PID loops velocity
 set pidPitVel to pidLoop(1, 0, 0.1).
@@ -845,11 +861,11 @@ until padDist < 0.038 {
         set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
 
         // set pitch and yaw gimbal
-        set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4] - tarPitVel).
-        set tarYawAng to 0 - pidYawVel:update(time:seconds, trkYawVel[4] - tarYawVel).
-        set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set gimRoll to pidRolAtt:update(time:seconds, trkRolVel[4]).
+        set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
+        set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
+        set gimPitch to pidPitAtt8:update(time:seconds, trkPitAng[4] - tarPitAng).
+        set gimYaw to pidYawAtt8:update(time:seconds, trkYawAng[4] - tarYawAng).
+        set gimRoll to pidRolAtt8:update(time:seconds, trkRolVel[4]).
 
         // Set pilot control according to input
         set SS:control:pitch to gimPitch.
@@ -876,11 +892,11 @@ until padDist < 0.038 {
         set tarYawVel to pidYawVel:update(time:seconds, trkYawDst[4]).
 
         // set pitch and yaw gimbal
-        set tarPitAng to pidPitVel:update(time:seconds, trkPitVel[4] - tarPitVel).
-        set tarYawAng to 0 - pidYawVel:update(time:seconds, trkYawVel[4] - tarYawVel).
-        set gimPitch to pidPitAtt:update(time:seconds, trkPitAng[4] - tarPitAng).
-        set gimYaw to pidYawAtt:update(time:seconds, trkYawAng[4] - tarYawAng).
-        set gimRoll to pidRolAtt:update(time:seconds, trkRolVel[4]).
+        set tarPitAng to pidPitAng:update(time:seconds, trkPitVel[4] - tarPitVel).
+        set tarYawAng to 0 - pidYawAng:update(time:seconds, trkYawVel[4] - tarYawVel).
+        set gimPitch to pidPitAtt9:update(time:seconds, trkPitAng[4] - tarPitAng).
+        set gimYaw to pidYawAtt9:update(time:seconds, trkYawAng[4] - tarYawAng).
+        set gimRoll to pidRolAtt9:update(time:seconds, trkRolVel[4]).
 
         // Set pilot control according to input
         set SS:control:pitch to gimPitch.
