@@ -359,7 +359,7 @@ global lrpQRcode is 0. // Temporary value used in the calculation
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
 global srpTargKM is 0.25.
-global srpFlrAlt is 1.2.
+global srpFlrAlt is 1.25.
 global srpFinAlt is 1.2.
 global srfDist is 0.
 
