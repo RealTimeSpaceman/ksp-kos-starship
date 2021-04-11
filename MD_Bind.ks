@@ -8,15 +8,9 @@ if SS:partstagged("SS_CM"):length = 1 {
     // Bind to Module Command
     set MODCM to CM:getmodule("ModuleCommand").
     // Bind to header tanks
-    set i to 0.
-    until i = CM:resources:length {
-        if CM:resources[i]:name = "LqdOxygen" {
-            set LOXHD to CM:resources[i].
-        }
-        if CM:resources[i]:name = "LqdMethane" {
-            set CH4HD to CM:resources[i].
-        }
-        set i to i + 1.
+    for rsc in CM:resources {
+        if rsc:name = "LqdOxygen" { set LOXHD to rsc. }
+        if rsc:name = "LqdMethane" { set CH4HD to rsc. }
     }
 }
 if SS:partstagged("SS_SM"):length = 1 { set SM to SS:partstagged("SS_SM")[0]. }
