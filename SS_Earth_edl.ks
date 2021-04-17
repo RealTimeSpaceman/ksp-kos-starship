@@ -170,9 +170,9 @@ global lrpQRcode is 0. // Temporary value used in the calculation
 
 // Variables for short range pitch tracking
 global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
-global srpTargKM is 0.25.
+global srpTargKM is 0.
 global srpFlrAlt is 1.2.
-global srpFinAlt is 1.
+global srpFinAlt is 1.1.
 global srfDist is 0.
 
 // Variables for propulsive landing
@@ -184,8 +184,6 @@ sas off.
 // Track distance and heading to pad
 lock SSHeading to vang(north:vector, SS:srfPrograde:vector).
 lock padDist to landingPad:distance / 1000.
-
-lock axisTarget to SS:up.
 
 // Set initial pitch value
 set adjAlt to (SS:altitude / 1000).
@@ -248,16 +246,18 @@ until SLRA:thrust > minThrust {
 
         trkPitAng:add(get_pit(srfretrograde)).
         trkYawAng:add(get_yawdock(srfretrograde)).
-        trkRolAng:add(get_rolldock(axisTarget)).
+        trkRolAng:add(get_rolldock(SS:up)).
 
     } else {
 
         trkPitAng:add(get_pit(srfprograde)).
         trkRolAng:add(get_rollnose(srfretrograde)).
-        if curPhase >= 5 {
+        if curPhase < 5 {
+            trkYawAng:add(get_yawnose(SS:up)).
+        } else if curPhase = 5 {
             trkYawAng:add(landingPad:bearing).
         } else {
-            trkYawAng:add(get_yawnose(axisTarget)).
+            trkYawAng:add(get_yawnose(SS:north)).
         }
 
     }
@@ -279,8 +279,7 @@ until SLRA:thrust > minThrust {
 
     if curPhase < 5 {
 
-        // Set pitch for range to pad
-
+        // Set long range pitch tracking
         set adjAlt to (SS:altitude / 1000).
         set adjKM to (padDist - lrpTargKM).
         set adjGS to (SS:velocity:surface:mag / 1000).
@@ -294,12 +293,12 @@ until SLRA:thrust > minThrust {
 
     } else {
 
-        // Set pitch for range to pad
+        // Set short range pitch tracking
         set srfDist to sqrt(abs(padDist ^ 2 - (alt:radar / 1000) ^ 2)).
         set adjAlt to (alt:radar / 1000) - srpFinAlt.
         set adjKM to (srfDist - srpTargKM).
-        set tarPitAng to 90 - ((adjKM / adjAlt) / srpConst).
-        if tarPitAng < minPitAng { set tarPitAng to minPitAng. }
+        set minPitAng to 90 - zenRetAng[4].
+        set tarPitAng to max(minPitAng, 90 - ((adjKM / adjAlt) / srpConst)).
         if (alt:radar / 1000) < srpFlrAlt { set tarPitAng to 180. }
 
     }
@@ -423,6 +422,7 @@ until SLRA:thrust > minThrust {
             set csfPitch to 0.
             set csfYaw to 0.
             set csfRoll to 0.
+            set tarYawAng to get_yawnose(SS:north).
         }
     }
 
@@ -443,6 +443,7 @@ until SLRA:thrust > minThrust {
             SLRC:activate.
             // set throttle and pilot control for flip manoeuvre
             lock throttle to 1.
+            rcs on.
             lock steering to SS:up.
         }
 
@@ -537,23 +538,23 @@ FRCS:setfield("deploy angle", 0).
 RLCS:setfield("deploy angle", 0).
 RRCS:setfield("deploy angle", 0).
 
-set ssHeight to 39.
+set ssHeight to 40.
 lock altAdj to alt:radar - ssHeight.
 lock vecLndPad to vxcl(up:vector, landingPad:position).
 lock vecSrfVel to vxcl(up:vector, SS:velocity:surface).
 lock surfDist to (vecLndPad - vxcl(up:vector, SS:geoposition:position)):mag.
 
-set altFinal to 20.
+set altFinal to 15.
 
 set curPhase to 8.
 lock steering to srfRetrograde.
 lock throttle to 1.
-set tarVSpeed to -10.
+set tarVSpeed to -40.
 
 set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.01, 1).
 set pidThrottle:setpoint to 0.
 
-until surfDist < 10 and altAdj < 1 {
+until surfDist < 30 and SS:bounds:bottomaltradar < 1 {
 
     clearScreen.
     print "Phase     " + curPhase.
@@ -565,20 +566,20 @@ until surfDist < 10 and altAdj < 1 {
 
     if curPhase = 8 {
 
-        if SS:verticalspeed > -30 {
+        if SS:verticalspeed > tarVSpeed {
             set curPhase to 9.
-            // SLRA:shutdown.
-            lock steering to lookdirup((vecLndPad + max(250, surfDist * 5) * up:vector - 10 * (vecSrfVel)), SS:facing:topvector).
-            lock tarVSpeed to 0 - ((altAdj - altFinal) / 5).
+            rcs off.
+            lock steering to lookdirup(vecLndPad + (max(250, surfDist * 5) * up:vector) - (9 * vecSrfVel), SS:facing:topvector).
+            lock tarVSpeed to 0 - ((altAdj - altFinal) * (SS:velocity:surface:mag / surfDist)).
             lock throttle to pidThrottle:update(time:seconds, SS:verticalspeed - tarVSpeed).
         }
     }
 
     if curPhase = 9 {
 
-        if surfDist < 10 and SS:velocity:surface:mag < 1 {
+        if surfDist < 15 and SS:velocity:surface:mag < 1 {
             set curPhase to 10.
-            lock tarVSpeed to 0 - (altAdj / 5).
+            lock tarVSpeed to 0 - (altAdj / 5) - 2.
             gear on.
         }
 
