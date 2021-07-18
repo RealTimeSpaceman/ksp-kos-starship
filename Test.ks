@@ -1,4 +1,4 @@
-runOncePath("MD_Bind").
+runOncePath("MD_SS_Bind").
 runOncePath("MD_PYR_Funcs").
 
 until false {

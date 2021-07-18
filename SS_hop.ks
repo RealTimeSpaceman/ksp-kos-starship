@@ -1,7 +1,8 @@
-runOncePath("MD_Bind").
+runOncePath("MD_SS_Bind").
 runPath("MD_Ini_SS_Launch").
 
-global landingPad is latlng(26.0384, -97.1537).
+// Landing pad - tower crane
+global landingPad is latlng(26.035898, -97.149736).
 
 // Activate engines
 SLRA:activate.
@@ -21,7 +22,7 @@ set throttle to 1.
 set tarVSpeed to 0.
 set altFinal to 3.
 
-set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.4, 1).
+set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.01, 1).
 set pidThrottle:setpoint to 0.
 
 until surfDist < 30 and SS:bounds:bottomaltradar < 1 {

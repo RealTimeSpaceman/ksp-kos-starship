@@ -6,14 +6,18 @@ set SS to SHIP.
 if SS:partstagged("SS_CM"):length = 1 {
     set CM to SS:partstagged("SS_CM")[0].
     // Bind to Module Command
-    set MODCM to CM:getmodule("ModuleCommand").
+    set CMCMD to CM:getmodule("ModuleCommand").
+    set CMRCS to CM:getmodule("ModuleRCSFX").
     // Bind to header tanks
     for rsc in CM:resources {
         if rsc:name = "LqdOxygen" { set LOXHD to rsc. }
         if rsc:name = "LqdMethane" { set CH4HD to rsc. }
     }
 }
-if SS:partstagged("SS_SM"):length = 1 { set SM to SS:partstagged("SS_SM")[0]. }
+if SS:partstagged("SS_SM"):length = 1 {
+    set SM to SS:partstagged("SS_SM")[0].
+    set SMRCS to SM:getmodule("ModuleRCSFX").
+}
 
 // Bind to engines
 if SS:partstagged("VacRap_A"):length = 1 { set VCRA to SS:partstagged("VacRap_A")[0]. }

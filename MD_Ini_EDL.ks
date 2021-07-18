@@ -4,9 +4,9 @@ set SS:control:pitch to 0.
 set SS:control:yaw to 0.
 set SS:control:roll to 0.
 
-if MODCM:hasevent("control point: forward") {
+if CMCMD:hasevent("control point: forward") {
     // Control from docking port
-    MODCM:doevent("control point: forward").
+    CMCMD:doevent("control point: forward").
 }
 
 // Shutdown engines

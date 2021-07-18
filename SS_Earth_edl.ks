@@ -56,7 +56,7 @@ function set_RCSRol {
 // SHIP CONTROLS
 //---------------------------------------------------------------------------------------------------------------------
 
-runOncePath("MD_Bind").
+runOncePath("MD_SS_Bind").
 runOncePath("MD_PYR_Funcs").
 runPath("MD_Ini_EDL").
 
@@ -196,7 +196,7 @@ set tarPitAng to lrpConst - lrpQRcode.
 // Determine aero on or off
 if SS:dynamicpressure > dpPhase2 {
     set curPhase to 2.
-    MODCM:doevent("control point: docking").
+    CMCMD:doevent("control point: docking").
     set aeroOn to true.
 } else {
     set curPhase to 0.
@@ -242,7 +242,7 @@ until SLRA:thrust > minThrust {
     trkPitAng:remove(0).
     trkYawAng:remove(0).
     trkRolAng:remove(0).
-    if MODCM:hasevent("control point: docking") {
+    if CMCMD:hasevent("control point: docking") {
 
         trkPitAng:add(get_pit(srfretrograde)).
         trkYawAng:add(get_yawdock(srfretrograde)).
@@ -287,7 +287,7 @@ until SLRA:thrust > minThrust {
         set tarPitAng to lrpConst - lrpQRcode.
         if tarPitAng < minPitAng { set tarPitAng to minPitAng. }
         if tarPitAng > maxPitAng { set tarPitAng to maxPitAng. }
-        if MODCM:hasevent("control point: docking") {
+        if CMCMD:hasevent("control point: docking") {
             set tarPitAng to 90 - tarPitAng.
         }
 
@@ -342,7 +342,7 @@ until SLRA:thrust > minThrust {
         if SS:dynamicpressure > dpPhase2 {
             set curPhase to 2.
             // Set control point to nose
-            MODCM:doevent("control point: docking").
+            CMCMD:doevent("control point: docking").
             set aeroOn to true.
             set SS:control:pitch to 0.
             set SS:control:yaw to 0.

@@ -1,7 +1,7 @@
 
 // Set control point to nose
-if MODCM:hasevent("control point: docking") {
-    MODCM:doevent("control point: docking").
+if CMCMD:hasevent("control point: docking") {
+    CMCMD:doevent("control point: docking").
 }
 
 // Kill control axes
@@ -39,6 +39,14 @@ RRCS:setfield("deploy", true).
 set LOXHD:enabled to false.
 set CH4HD:enabled to false.
 
-// Turn off rcs and sas
+// Enable rcs on individual parts
+if CMRCS:getfield("rcs") = false {
+    CMRCS:doaction("toggle rcs thrust", true).
+}
+if SMRCS:getfield("rcs") = false {
+    SMRCS:doaction("toggle rcs thrust", true).
+}
+
+// Turn off global rcs and sas
 rcs off.
 sas off.

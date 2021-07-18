@@ -1,7 +1,7 @@
 // Initialise
 runOncePath("lib_navball").
 runOncePath("MD_PYR_Funcs").
-runOncePath("MD_Bind").
+runOncePath("MD_SS_Bind").
 runPath("MD_Ini_SS_Launch").
 
 // Set landing target of SpaceX Boca Chica landing pad
