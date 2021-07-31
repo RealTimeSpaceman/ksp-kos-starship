@@ -29,12 +29,12 @@ function set_RCSYaw {
     // RCS for yaw
     set SS:control:yaw to 0.
     if trkYawAng[4] > 0.5 and trkYawVel[4] > 0 {
-        set SS:control:yaw to 0.06.
-        print "YAW +".
-    }
-    if trkYawAng[4] < -0.5 and trkYawVel[4] < 0 {
         set SS:control:yaw to -0.06.
         print "YAW -".
+    }
+    if trkYawAng[4] < -0.5 and trkYawVel[4] < 0 {
+        set SS:control:yaw to 0.06.
+        print "YAW +".
     }
 }
 
@@ -43,12 +43,12 @@ function set_RCSRol {
     parameter strength.
     set SS:control:roll to 0.
     if trkRolAng[4] > 0.5 and trkRolVel[4] > 0 {
-        set SS:control:roll to strength.
-        print "ROL +".
-    }
-    if trkRolAng[4] < -0.5 and trkRolVel[4] < 0 {
         set SS:control:roll to 0 - strength.
         print "ROL -".
+    }
+    if trkRolAng[4] < -0.5 and trkRolVel[4] < 0 {
+        set SS:control:roll to strength.
+        print "ROL +".
     }
 }
 
@@ -164,7 +164,7 @@ global angTrnEnd is 30.
 
 // Variables for long range pitch tracking
 global lrpTargKM is 15.
-global lrpConst is 100.
+global lrpConst is 105.
 global lrpRatio is 0.000011.
 global lrpQRcode is 0. // Temporary value used in the calculation
 
@@ -196,10 +196,11 @@ set tarPitAng to lrpConst - lrpQRcode.
 // Determine aero on or off
 if SS:dynamicpressure > dpPhase2 {
     set curPhase to 2.
+    CMCMD:doevent("control point: docking").
     set aeroOn to true.
 } else {
     set curPhase to 0.
-    lock steering to lookdirup(heading(landingPad:heading, tarPitAng):vector, SS:srfRetrograde:vector).
+    lock steering to srfRetrograde.
 }
 
 // Write first line of log
@@ -241,15 +242,24 @@ until SLRA:thrust > minThrust {
     trkPitAng:remove(0).
     trkYawAng:remove(0).
     trkRolAng:remove(0).
+    if CMCMD:hasevent("control point: docking") {
 
-    trkPitAng:add(get_pit(srfprograde)).
-    trkRolAng:add(get_rollnose(srfretrograde)).
-    if curPhase < 5 {
-        trkYawAng:add(get_yawnose(SS:up)).
-    } else if curPhase = 5 {
-        trkYawAng:add(landingPad:bearing).
+        trkPitAng:add(get_pit(srfretrograde)).
+        trkYawAng:add(get_yawdock(srfretrograde)).
+        trkRolAng:add(get_rolldock(SS:up)).
+
     } else {
-        trkYawAng:add(get_yawnose(SS:north)).
+
+        trkPitAng:add(get_pit(srfprograde)).
+        trkRolAng:add(get_rollnose(srfretrograde)).
+        if curPhase < 5 {
+            trkYawAng:add(get_yawnose(SS:up)).
+        } else if curPhase = 5 {
+            trkYawAng:add(landingPad:bearing).
+        } else {
+            trkYawAng:add(get_yawnose(SS:north)).
+        }
+
     }
 
     // Calculate velocities
@@ -277,7 +287,10 @@ until SLRA:thrust > minThrust {
         set tarPitAng to lrpConst - lrpQRcode.
         if tarPitAng < minPitAng { set tarPitAng to minPitAng. }
         if tarPitAng > maxPitAng { set tarPitAng to maxPitAng. }
-        
+        if CMCMD:hasevent("control point: docking") {
+            set tarPitAng to 90 - tarPitAng.
+        }
+
     } else {
 
         // Set short range pitch tracking
@@ -295,7 +308,7 @@ until SLRA:thrust > minThrust {
     if curPhase = 0 { // Initial orientation of vehicle
     
         // Calculate stability
-        local instability is abs(trkPitAng[4] - tarPitAng) + abs(trkYawAng[4]) + abs(trkRolAng[4]).
+        local instability is abs(trkPitAng[4]) + abs(trkYawAng[4]) + abs(trkRolAng[4]).
         local rotVel is trkPitVel[4] + trkYawVel[4] + trkRolVel[4].
 
         if instability < 1 and rotVel < 1 {
@@ -312,14 +325,14 @@ until SLRA:thrust > minThrust {
         
         local sumPitRCS is trkPitRCS[3] + trkPitRCS[2] + trkPitRCS[1] + trkPitRCS[0].
         
-        if sumPitRCS > 0 {
+        if sumPitRCS < 0 {
             set TFOU to transfer("LqdOxygen", CM, SM, 164.948).
             set TFMU to transfer("LqdMethane", CM, SM, 121.650).
             set TFOU:active to true.
             set TFMU:active to true.
         }
         
-        if sumPitRCS < 0 {
+        if sumPitRCS > 0 {
             set TFOD to transfer("LqdOxygen", SM, CM, 164.948).
             set TFMD to transfer("LqdMethane", SM, CM, 121.650).
             set TFOD:active to true.
@@ -328,6 +341,8 @@ until SLRA:thrust > minThrust {
 
         if SS:dynamicpressure > dpPhase2 {
             set curPhase to 2.
+            // Set control point to nose
+            CMCMD:doevent("control point: docking").
             set aeroOn to true.
             set SS:control:pitch to 0.
             set SS:control:yaw to 0.

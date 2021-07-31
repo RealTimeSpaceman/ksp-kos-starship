@@ -30,18 +30,18 @@ if SS:partstagged("SLRap_C"):length = 1 { set SLRC to SS:partstagged("SLRap_C")[
 // Bind to flaps and control surfaces
 if SS:partstagged("Fin_FL"):length = 1 {
     set FL to SS:partstagged("Fin_FL")[0].
-    set FLCS to FL:getmodule("ModuleControlSurface").
+    set FLCS to FL:getmodule("ModuleTundraControlSurface").
 }
 if SS:partstagged("Fin_FR"):length = 1 {
     set FR to SS:partstagged("Fin_FR")[0].
-    set FRCS to FR:getmodule("ModuleControlSurface").
+    set FRCS to FR:getmodule("ModuleTundraControlSurface").
 }
 if SS:partstagged("Fin_RL"):length = 1 {
     set RL to SS:partstagged("Fin_RL")[0].
-    set RLCS to RL:getmodule("ModuleControlSurface").
+    set RLCS to RL:getmodule("ModuleTundraControlSurface").
 }
 if SS:partstagged("Fin_RR"):length = 1 {
     set RR to SS:partstagged("Fin_RR")[0].
-    set RRCS to RR:getmodule("ModuleControlSurface").
+    set RRCS to RR:getmodule("ModuleTundraControlSurface").
 }
 
