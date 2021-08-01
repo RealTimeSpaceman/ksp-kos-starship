@@ -163,16 +163,16 @@ global angTrnBeg is 70.
 global angTrnEnd is 30.
 
 // Variables for long range pitch tracking
-global lrpTargKM is 15.
-global lrpConst is 100.
+global lrpTargKM is 12.
+global lrpConst is 95.
 global lrpRatio is 0.000011.
 global lrpQRcode is 0. // Temporary value used in the calculation
 
 // Variables for short range pitch tracking
-global srpConst is 0.019. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
+global srpConst is 0.014. // surface KM gained per KM lost in altitude for every degree of pitch forward - starting value 0.019
 global srpTargKM is 0.
-global srpFlrAlt is 1.2.
-global srpFinAlt is 1.1.
+global srpFlrAlt is 1.
+global srpFinAlt is 0.9.
 global srfDist is 0.
 
 // Variables for propulsive landing
@@ -532,11 +532,12 @@ lock surfDist to (vecLndPad - vxcl(up:vector, SS:geoposition:position)):mag.
 set altFinal to 15.
 
 set curPhase to 8.
-lock steering to srfRetrograde.
+//lock steering to srfRetrograde.
+lock steering to lookdirup(vecLndPad + (max(500, surfDist * 5) * up:vector) - (9 * vecSrfVel), SS:facing:topvector).
 lock throttle to 1.
-set tarVSpeed to -40.
+set tarVSpeed to -10.
 
-set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.01, 1).
+set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
 
 until surfDist < 30 and SS:bounds:bottomaltradar < 1 {
@@ -557,12 +558,15 @@ until surfDist < 30 and SS:bounds:bottomaltradar < 1 {
             lock steering to lookdirup(vecLndPad + (max(250, surfDist * 5) * up:vector) - (9 * vecSrfVel), SS:facing:topvector).
             lock tarVSpeed to 0 - ((altAdj - altFinal) * (SS:velocity:surface:mag / surfDist)).
             lock throttle to pidThrottle:update(time:seconds, SS:verticalspeed - tarVSpeed).
+            // Shutdown 2 engines
+            SLRB:shutdown.
+            SLRC:shutdown.
         }
     }
 
     if curPhase = 9 {
 
-        if surfDist < 15 and SS:velocity:surface:mag < 1 {
+        if surfDist < 25 and SS:velocity:surface:mag < 4 {
             set curPhase to 10.
             lock tarVSpeed to 0 - (altAdj / 5) - 2.
             gear on.
