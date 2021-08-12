@@ -164,7 +164,9 @@ global angTrnEnd is 30.
 
 // Variables for long range pitch tracking
 global lrpTargKM is 12.
-global lrpConst is 95.
+// 105 worked for 264 starting mass - 95 worked for 144 starting mass
+// Solution is to make lrpConst = (Mass / 12) + 83
+global lrpConst is (SS:mass / 12) + 83.
 global lrpRatio is 0.000011.
 global lrpQRcode is 0. // Temporary value used in the calculation
 
@@ -298,7 +300,7 @@ until SLRA:thrust > minThrust {
         local instability is abs(trkPitAng[4] - tarPitAng) + abs(trkYawAng[4]) + abs(trkRolAng[4]).
         local rotVel is trkPitVel[4] + trkYawVel[4] + trkRolVel[4].
 
-        if instability < 1 and rotVel < 1 {
+        if instability < 3 and rotVel < 1 {
             unlock steering.
             set curPhase to 1.
         }
@@ -558,9 +560,14 @@ until surfDist < 30 and SS:bounds:bottomaltradar < 1 {
             lock steering to lookdirup(vecLndPad + (max(250, surfDist * 5) * up:vector) - (9 * vecSrfVel), SS:facing:topvector).
             lock tarVSpeed to 0 - ((altAdj - altFinal) * (SS:velocity:surface:mag / surfDist)).
             lock throttle to pidThrottle:update(time:seconds, SS:verticalspeed - tarVSpeed).
-            // Shutdown 2 engines
-            SLRB:shutdown.
-            SLRC:shutdown.
+            if SS:mass > 180 {
+                // Shutdown 1 engines if mass over 180t
+                SLRA:shutdown.
+            } else {
+                // Shutdown 2 engines if mass under 180t
+                SLRB:shutdown.
+                SLRC:shutdown.
+            }
         }
     }
 
@@ -575,3 +582,12 @@ until surfDist < 30 and SS:bounds:bottomaltradar < 1 {
     }
 
 }
+
+// Stabilise SS on pad
+SLRA:shutdown.
+SLRB:shutdown.
+SLRC:shutdown.
+rcs on.
+lock steering to up.
+wait 10.
+sas on.
