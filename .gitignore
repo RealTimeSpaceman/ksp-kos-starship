@@ -2,3 +2,4 @@ earth_edl_log
 .gitignore
 *.csv
 *.DPM
+*.xlsx
