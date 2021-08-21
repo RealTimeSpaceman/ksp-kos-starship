@@ -49,8 +49,9 @@ FRCS:setfield("roll", true).
 RLCS:setfield("roll", true).
 RRCS:setfield("roll", true).
 
-// Disable RCS
+// Disable RCS and SAS
 rcs off.
+sas off.
 
 // Set starting angles
 FLCS:setfield("deploy angle", 0).
