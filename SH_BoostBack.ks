@@ -100,6 +100,14 @@ runPath("MD_Ini_SH_Launch").
 // INITIALISE
 //---------------------------------------------------------------------------------------------------------------------
 
+// Engine groups
+global colRB is list(RB01, RB02, RB03, RB04, RB05, RB06, RB07, RB08, RB09, RB10, RB11, RB12, RB13, RB14, RB15, RB16, RB17, RB18, RB19, RB20).
+global colRG is list(RG01, RG02, RG03, RG04, RG05, RG06, RG07, RG08, RG09).
+global colRGOdd is list(RG01, RG03, RG05, RG07, RG09).
+
+// Grid fin group
+global colGF is list(FLCS, FRCS, RLCS, RRCS).
+
 // Landing pad - tower crane
 global landingPad is latlng(26.035898, -97.149736).
 
@@ -140,43 +148,15 @@ global curRolAng is 0.
 
 if FT:Resources[0]:amount > 400000 {
 
+    // Ascent
     until FT:Resources[0]:amount < 400000 {
-
         write_screen("Ascent").
         print "LqdOxygen:    " + round(FT:Resources[0]:amount, 0) + "    " at(0, 17).
-
     }
 
     // Shutdown engines
-    RB01:Shutdown.
-    RB02:Shutdown.
-    RB03:Shutdown.
-    RB04:Shutdown.
-    RB05:Shutdown.
-    RB06:Shutdown.
-    RB07:Shutdown.
-    RB08:Shutdown.
-    RB09:Shutdown.
-    RB10:Shutdown.
-    RB11:Shutdown.
-    RB12:Shutdown.
-    RB13:Shutdown.
-    RB14:Shutdown.
-    RB15:Shutdown.
-    RB16:Shutdown.
-    RB17:Shutdown.
-    RB18:Shutdown.
-    RB19:Shutdown.
-    RB20:Shutdown.
-    RG01:Shutdown.
-    RG02:Shutdown.
-    RG03:Shutdown.
-    RG04:Shutdown.
-    RG05:Shutdown.
-    RG06:Shutdown.
-    RG07:Shutdown.
-    RG08:Shutdown.
-    RG09:Shutdown.
+    for RB in colRB { RB:Shutdown. }
+    for RG in colRG { RG:Shutdown. }
 
     clearScreen.
     print "Stage".
@@ -188,19 +168,10 @@ if FT:Resources[0]:amount > 400000 {
     clearScreen.
     print "Flip".
 
-    // Enable manual control
-    FLCS:setfield("pitch", false).
-    FRCS:setfield("pitch", false).
-    RLCS:setfield("pitch", false).
-    RRCS:setfield("pitch", false).
-    FLCS:setfield("yaw", false).
-    FRCS:setfield("yaw", false).
-    RLCS:setfield("yaw", false).
-    RRCS:setfield("yaw", false).
-    FLCS:setfield("roll", false).
-    FRCS:setfield("roll", false).
-    RLCS:setfield("roll", false).
-    RRCS:setfield("roll", false).
+    // Enable grid fin control
+    for GF in colGF{ GF:setfield("pitch", false). }
+    for GF in colGF{ GF:setfield("yaw", false). }
+    for GF in colGF{ GF:setfield("roll", false). }
 
     rcs on.
     set SHIP:control:pitch to 1.
@@ -213,48 +184,30 @@ if FT:Resources[0]:amount > 400000 {
     local headBB is heading_of_vector(srfRetrograde:vector).
     lock steering to lookdirup(heading(headBB, 0):vector, SHIP:up:inverse:vector).
 
-    until vAng(SHIP:facing:vector, heading(headBB, 0):vector) < 10 {
-
-        write_screen("Flip").
-
-    }
+    until vAng(SHIP:facing:vector, heading(headBB, 0):vector) < 10 { write_screen("Flip"). }
 
     // Activate gimbal engines
-    RG01:Activate.
-    RG02:Activate.
-    RG03:Activate.
-    RG04:Activate.
-    RG05:Activate.
-    RG06:Activate.
-    RG07:Activate.
-    RG08:Activate.
-    RG09:Activate.
+    for RG in colRG { RG:Activate. }
 
     set throttle to 1.
 
-    until abs(padBear) < 40 {
+    until abs(padBear) < 50 { write_screen("Boostback"). }
 
-        write_screen("Boostback").
+    // Shutdown 5 gimbal engines
+    for RG in colRGOdd { RG:Shutdown. }
 
-    }
+    set pidAngle TO pidLoop(10, 0.1, 2, -30, 30).
+    set pidAngle:setpoint to 0.
 
-    // reduce thrust
-    RG01:Shutdown.
-    RG03:Shutdown.
-    RG05:Shutdown.
-    RG07:Shutdown.
-    RG09:Shutdown.
-
-    lock steering to lookdirup(heading(landingPad:heading + (padBear * 2.5), 0):vector, SHIP:up:inverse:vector).
-    local overshoot is 2000.
+    //lock steering to lookdirup(heading(landingPad:heading + (padBear * 2.5), 0):vector, SHIP:up:inverse:vector).
+    lock steering to lookdirup(heading(landingPad:heading - pidAngle:update(time:seconds, padBear), 0):vector, SHIP:up:inverse:vector).
+    local overshoot is 1000.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
     until SHIP:groundspeed > tarSrfVel {
-
         write_screen("Target Pad").
         print "tarSrfVel:    " + tarSrfVel + "    " at(0, 17).
-        
     }
     print "                                  " at(0, 17).
     unlock tarSrfVel.
@@ -264,91 +217,43 @@ if FT:Resources[0]:amount > 400000 {
 set throttle to 0.
 
 // Shutdown boost engines
-RB01:Shutdown.
-RB02:Shutdown.
-RB03:Shutdown.
-RB04:Shutdown.
-RB05:Shutdown.
-RB06:Shutdown.
-RB07:Shutdown.
-RB08:Shutdown.
-RB09:Shutdown.
-RB10:Shutdown.
-RB11:Shutdown.
-RB12:Shutdown.
-RB13:Shutdown.
-RB14:Shutdown.
-RB15:Shutdown.
-RB16:Shutdown.
-RB17:Shutdown.
-RB18:Shutdown.
-RB19:Shutdown.
-RB20:Shutdown.
+for RB in colRB { RB:Shutdown. }
 
 // Activate gimbal engines
-RG01:Activate.
-RG02:Activate.
-RG03:Activate.
-RG04:Activate.
-RG05:Activate.
-RG06:Activate.
-RG07:Activate.
-RG08:Activate.
-RG09:Activate.
+for RG in colRG { RG:Activate. }
 
-// Enable manual control
-FLCS:setfield("pitch", false).
-FRCS:setfield("pitch", false).
-RLCS:setfield("pitch", false).
-RRCS:setfield("pitch", false).
-FLCS:setfield("yaw", false).
-FRCS:setfield("yaw", false).
-RLCS:setfield("yaw", false).
-RRCS:setfield("yaw", false).
-FLCS:setfield("roll", false).
-FRCS:setfield("roll", false).
-RLCS:setfield("roll", false).
-RRCS:setfield("roll", false).
+// Enable grid fin control
+for GF in colGF{ GF:setfield("pitch", false). }
+for GF in colGF{ GF:setfield("yaw", false). }
+for GF in colGF{ GF:setfield("roll", false). }
 
 // Variables for entry burn
 global altEntBrn is 33000.
-global secEntBrn is 4.
+global secEntBrn is 5.
 global secEngSpl is 4.
 
 rcs off.
 lock steering to lookdirup(heading(landingPad:heading + 180, 90 - vAng(up:vector, srfRetrograde:vector)):vector, SHIP:up:vector).
 
-until SHIP:altitude < altEntBrn {
-
-    write_screen("Aero guidance").
-
-}
+until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 
 rcs on.
 set throttle to 1.
 
-lock steering to lookdirup(heading(landingPad:heading + 180 - (padBear * 15), 90 - vAng(up:vector, srfRetrograde:vector)):vector, SHIP:up:vector).
+lock steering to lookdirup(heading(landingPad:heading + 180 - (padBear * 20), 90 - vAng(up:vector, srfRetrograde:vector)):vector, SHIP:up:vector).
 
 global timEntBrn is time:seconds + secEngSpl + secEntBrn.
 
-until time:seconds > timEntBrn {
-
-    write_screen("Entry burn").
-
-}
+until time:seconds > timEntBrn { write_screen("Entry burn"). }
 
 set throttle to 0.
 
 lock steering to lookdirup(heading(landingPad:heading + 180, 90 - vAng(up:vector, srfRetrograde:vector)):vector, SHIP:up:vector).
 
-until SHIP:altitude < 16000 {
-
-    write_screen("Re-entry").
-
-}
+until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 global altFinal is 85.
-global engAcl is 40.
+global engAcl is 50.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + altFinal.
 
 until SHIP:altitude < altLndBrn {
@@ -367,7 +272,7 @@ set curPhase to 8.
 lock steering to srfRetrograde.
 //lock steering to lookdirup(vecLndPad + (max(500, surfDist * 5) * up:vector) - (9 * vecSrfVel), SHIP:facing:topvector).
 lock throttle to 1.
-set tarVSpeed to -250.
+set tarVSpeed to -100.
 
 set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
@@ -384,11 +289,7 @@ until surfDist < 30 and SHIP:bounds:bottomaltradar < 1 {
             lock steering to lookdirup(vecLndPad + (max(250, surfDist * 5) * up:vector) - (9 * vecSrfVel), SHIP:facing:topvector).
             lock tarVSpeed to 0 - ((altAdj - altFinal) * (SHIP:groundspeed / surfDist)).
             lock throttle to pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed).
-            RG01:Shutdown.
-            RG03:Shutdown.
-            RG05:Shutdown.
-            RG07:Shutdown.
-            RG09:Shutdown.
+            for RG in colRGOdd { RG:Shutdown. }
         }
     }
 
