@@ -245,17 +245,18 @@ local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // Aim retrograde but reduce bearing to pad
-lock steering to lookdirup(heading(landingPad:heading - 180 - pidEntBrn:update(time:seconds, lrDelta), angHrzRet):vector, heading(landingPad:heading, 0):vector).
+lock steering to lookdirup(heading(landingPad:heading - 180, angHrzRet):vector, heading(landingPad:heading, 0):vector).
+//-lock steering to lookdirup(heading(landingPad:heading - 180 - pidEntBrn:update(time:seconds, lrDelta), angHrzRet):vector, heading(landingPad:heading, 0):vector).
 local timEntBrn is time:seconds + secEntBrn.
 until time:seconds > timEntBrn { write_screen("Entry burn"). }
 
 // RE-ENTRY
 set throttle to 0.
 
-// Steer towards pad
+// Steer towards pad during burn
 set pidAeroLR TO pidLoop(0.1, 1, 0.1, -12, 12).
 set pidAeroLR:setpoint to -200.
-lock steering to lookdirup(heading(landingPad:heading - 180 + pidAeroLR:update(time:seconds, lrDelta), angHrzRet):vector, heading(landingPad:heading, 0):vector).
+//-lock steering to lookdirup(heading(landingPad:heading - 180 + pidAeroLR:update(time:seconds, lrDelta), angHrzRet):vector, heading(landingPad:heading, 0):vector).
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // FINAL APPROACH
@@ -275,13 +276,13 @@ print "                        " at(0, 19).
 // LANDING BURN
 set shHeight to 20.
 lock altAdj to alt:radar - shHeight.
-set tarVSpd1 to -500.
+set tarVSpd1 to -150.
 set tarVSpd2 to -60.
 
 set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
 
-lock steering to srfRetrograde.
+//-lock steering to srfRetrograde.
 lock throttle to 1.
 
 set timEngSpl to time:seconds + secEngSpl.
