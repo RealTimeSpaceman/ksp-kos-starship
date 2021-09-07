@@ -196,7 +196,7 @@ if FT:Resources[0]:amount > 400000 {
     // Shutdown 5 gimbal engines
     for RG in colRGOdd { RG:Shutdown. }
 
-    local overshoot is 500.
+    local overshoot is 100.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
@@ -237,7 +237,7 @@ until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 
 // ENTRY BURN
 set pidEntBrn TO pidLoop(0.1, 1, 0.1, -12, 12).
-set pidEntBrn:setpoint to 0.
+set pidEntBrn:setpoint to -200.
 rcs on.
 set throttle to 1.
 
@@ -254,7 +254,7 @@ set throttle to 0.
 
 // Steer towards pad
 set pidAeroLR TO pidLoop(0.1, 1, 0.1, -12, 12).
-set pidAeroLR:setpoint to 0.
+set pidAeroLR:setpoint to -200.
 lock steering to lookdirup(heading(landingPad:heading - 180 + pidAeroLR:update(time:seconds, lrDelta), angHrzRet):vector, heading(landingPad:heading, 0):vector).
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
@@ -301,7 +301,7 @@ lock throttle to pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed
 for RG in colRGOdd { RG:Shutdown. }
 
 
-until surfDist < 10 and SHIP:groundspeed < 2 { write_screen("Pad hover"). }
+until surfDist < 25 and SHIP:groundspeed < 4 and SHIP:altitude < 250 { write_screen("Pad hover"). }
 
 // DESCENT
 
@@ -313,9 +313,6 @@ set pidLat:setpoint to 0.
 set pidLng TO pidLoop(5, 0.1, 2, -1, 1).
 set pidLng:setpoint to 0.
 
-lock velNorth to vxcl(heading(90, 0):vector, vecSrfVel).
-lock velEast to vxcl(heading(0, 0):vector, vecSrfVel).
-
 lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 
 set tarVSpeed to -3.
@@ -323,8 +320,6 @@ set tarVSpeed to -3.
 // Stifle any lateral movement using pilot translation controls + PID controller
 until SHIP:bounds:bottomaltradar < 1 {
     write_screen("Descent").
-    print "vel North:    " + round(velNorth:mag, 2) + "    " at(0, 18).
-    print "vel East:     " + round(velEast:mag, 2) + "    " at(0, 18).
     set SHIP:control:starboard to 0 - pidLat:update(time:seconds, padRelLat).
     set SHIP:control:fore to pidLng:update(time:seconds, padRelLng).
 }
