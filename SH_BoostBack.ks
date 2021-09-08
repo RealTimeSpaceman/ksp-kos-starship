@@ -139,7 +139,12 @@ set logline to logline + "Vertical speed,".
 set logline to logline + "Surface distance,".
 set logline to logline + "Pad distance,".
 set logline to logline + "Pad bearing,".
+set logline to logline + "Rel lat,".
+set logline to logline + "Rel lng,".
+set logline to logline + "RCS STAB,".
+set logline to logline + "RCS FORE,".
 set logline to logline + "Throttle,".
+set logline to logline + "Rem prop,".
 log logline to SH_BB_log.
 
 write_console().
@@ -236,8 +241,8 @@ lock steering to lookdirup(heading(landingPad:heading - 180, angHrzRet):vector, 
 until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 
 // ENTRY BURN
-set pidEntBrn TO pidLoop(0.1, 1, 0.1, -12, 12).
-set pidEntBrn:setpoint to -200.
+set pidEntBrn TO pidLoop(0.05, 1, 0.1, -5, 5).
+set pidEntBrn:setpoint to -0.
 rcs on.
 set throttle to 1.
 
@@ -245,8 +250,9 @@ local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // Aim retrograde but reduce bearing to pad
-lock steering to lookdirup(heading(landingPad:heading - 180, angHrzRet):vector, heading(landingPad:heading, 0):vector).
+//lock steering to lookdirup(heading(landingPad:heading - 180, angHrzRet):vector, heading(landingPad:heading, 0):vector).
 //-lock steering to lookdirup(heading(landingPad:heading - 180 - pidEntBrn:update(time:seconds, lrDelta), angHrzRet):vector, heading(landingPad:heading, 0):vector).
+lock steering to lookdirup(heading(landingPad:heading - 190 + pidEntBrn:update(time:seconds, lrDelta), angHrzRet * cos(pidEntBrn:update(time:seconds, lrDelta))):vector, vecLndPad).
 local timEntBrn is time:seconds + secEntBrn.
 until time:seconds > timEntBrn { write_screen("Entry burn"). }
 
