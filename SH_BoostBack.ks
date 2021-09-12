@@ -203,7 +203,7 @@ if FT:Resources[0]:amount > 400000 {
     // Shutdown 5 gimbal engines
     for RG in colRGOdd { RG:Shutdown. }
 
-    local overshoot is 300.
+    local overshoot is 100.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
