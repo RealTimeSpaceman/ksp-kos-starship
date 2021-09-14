@@ -111,7 +111,8 @@ global colGF is list(FLCS, FRCS, RLCS, RRCS).
 // Landing pad - tower crane
 //global landingPad is latlng(26.035898, -97.149736).
 // Landing pad - tower catch
-global landingPad is latlng(26.0359779, -97.1531888).
+//global landingPad is latlng(26.0359779, -97.1531888).
+global landingPad is latlng(26.0359779, -97.1530888).
 global padEntDir is 270.
 
 // Track remaining propellant
@@ -159,10 +160,10 @@ global curRolAng is 0.
 // MAIN BODY
 //---------------------------------------------------------------------------------------------------------------------
 
-if FT:Resources[0]:amount > 400000 {
+if remProp > 18 {
 
     // ASCENT
-    until FT:Resources[0]:amount < 400000 { write_screen("Ascent"). }
+    until remProp < 18 { write_screen("Ascent"). }
 
     // STAGE - shutdown engines
     for RB in colRB { RB:Shutdown. }
@@ -203,7 +204,7 @@ if FT:Resources[0]:amount > 400000 {
     // Shutdown 5 gimbal engines
     for RG in colRGOdd { RG:Shutdown. }
 
-    local overshoot is 100.
+    local overshoot is 1000.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
@@ -248,7 +249,7 @@ set throttle to 1.
 
 // Steer towards pad during flight
 set pidAeroLR TO pidLoop(0.1, 3, 0.1, -12, 12).
-set pidAeroLR:setpoint to -0.
+set pidAeroLR:setpoint to 0.
 lock tarYawAng to pidAeroLR:update(time:seconds, lrDelta).
 lock steering to lookdirup(heading(landingPad:heading - 180 + tarYawAng, angHrzRet * cos (tarYawAng)):vector, vecLndPad).
 
@@ -257,7 +258,7 @@ until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // Aim retrograde but reduce bearing to pad
 set pidEntBrn TO pidLoop(0.1, 10, 0.2, -5, 5).
-set pidEntBrn:setpoint to -0.
+set pidEntBrn:setpoint to 0.
 lock tarYawAng to pidEntBrn:update(time:seconds, lrDelta).
 lock steering to lookdirup(heading(landingPad:heading - 185 + tarYawAng, angHrzRet * cos(tarYawAng)):vector, vecLndPad).
 local timEntBrn is time:seconds + secEntBrn.
@@ -271,8 +272,8 @@ lock steering to lookdirup(heading(landingPad:heading - 180 + tarYawAng, angHrzR
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // FINAL APPROACH
-global altFinal is 80.
-global engAcl is 44.
+global altFinal is 125.
+global engAcl is 42.5.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + altFinal.
 
 until SHIP:altitude < altLndBrn {
@@ -289,18 +290,16 @@ set timEngSpl to time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // LANDING BURN
-set tarVSpd1 to -150.
 set pidLndBrn TO pidLoop(0.2, 3, 0.4, -12.5, 12.5).
-set pidLndBrn:setpoint to -0.
-lock tarYawAng to pidLndBrn:update(time:seconds, lrDelta).
-lock steering to lookdirup(heading(landingPad:heading - 195 + tarYawAng, angHrzRet * cos(tarYawAng)):vector, vecLndPad).
-until SHIP:verticalspeed > tarVSpd1 { write_screen("Landing burn"). }
-unlock angHrzRet.
+set pidLndBrn:setpoint to 0.
+//lock tarYawAng to pidLndBrn:update(time:seconds, lrDelta).
+//lock steering to lookdirup(heading(landingPad:heading - 195 + tarYawAng, angHrzRet * cos(tarYawAng)):vector, heading(padEntDir, 0):vector).
+lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
+until SHIP:verticalspeed > -175 { write_screen("Landing burn"). }
 
 // TARGET PAD
-set tarVSpd2 to -15.
 lock steering to lookdirup(vecLndPad + (max(250, surfDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
-until SHIP:verticalspeed > tarVSpd2 { write_screen("Target pad"). }
+until SHIP:verticalspeed > -15 { write_screen("Target pad"). }
 
 // PAD HOVER
 set shHeight to 20.
@@ -313,7 +312,18 @@ lock throttle to pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed
 // Shutdown odd gimbal engines
 for RG in colRGOdd { RG:Shutdown. }
 
-until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 { write_screen("Pad hover"). }
+until surfDist < 5 and SHIP:groundspeed < 2 and SHIP:altitude < 300 {
+    write_screen("Pad approach").
+    if remProp < 3 RG01:Shutdown.
+}
+
+set landingPad to latlng(26.0359779, -97.1531888).
+set altFinal to 80.
+
+until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
+    write_screen("Pad descent").
+    if remProp < 3 RG01:Shutdown.
+}
 
 // DESCENT
 
