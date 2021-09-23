@@ -16,7 +16,7 @@ function write_console {
     print "Srf distance: " at (0, 7).
     print "Pad distance: " at (0, 8).
     print "Target pitch: " at (0, 9).
-    print "Target VSpd:  " at (0, 10).
+    print "F/B delta(m): " at (0, 10).
     print "----------------------------" at (0, 11).
     print "Pad bearing:  " at (0, 12).
     print "Target yaw:   " at (0, 13).
@@ -42,7 +42,7 @@ function write_screen {
     print round(surfDist / 1000, 2) + "    " at (14, 7).
     print round(padDist, 2) + "    " at (14, 8).
     print round(tarPitAng, 2) + "    " at (14, 9).
-    print round(tarVSpeed, 0) + "    " at (14, 10).
+    print round(fbDelta, 0) + "    " at (14, 10).
     // print "----------------------------".
     print round(padBear, 2) + "    " at (14, 12).
     print round(tarYawAng, 2) + "    " at (14, 13).
@@ -60,7 +60,7 @@ function write_screen {
     set logline to logline + round(surfDist / 1000, 2) + ",".
     set logline to logline + round(padDist, 2) + ",".
     set logline to logline + round(tarPitAng, 2) + ",".
-    set logline to logline + round(tarVSpeed, 0) + ",".
+    set logline to logline + round(fbDelta, 0) + ",".
     set logline to logline + round(padBear, 2) + ",".
     set logline to logline + round(tarYawAng, 2) + ",".
     set logline to logline + round(lrDelta, 0) + ",".
@@ -128,7 +128,6 @@ lock lrDelta to sin(padBear) * surfDist.
 lock fbDelta to 0.
 lock tarYawAng to 0.
 lock tarPitAng to 0.
-lock tarVSpeed to 0.
 
 // Write first line of log
 deletePath(sh_bb_log.csv).
@@ -241,6 +240,7 @@ global secEntBrn is 6.
 global secEngSpl is 3.
 
 // Aim at retrograde
+lock angHrzRet to 90 - vAng(up:vector, srfRetrograde:vector).
 lock steering to lookdirup(srfRetrograde:vector, heading(0, 90):vector).
 until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 
@@ -248,21 +248,51 @@ until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 rcs on.
 set throttle to 1.
 
+// Variables for pitch tracking
+global ptTarDst is 1000.
+global ptTarAlt is 6000.
+lock adjAlt to SHIP:altitude - ptTarAlt.
+lock adjDist to (surfDist * cos(padBear)) - ptTarDst.
+
+// Steer towards pad during flight
+set pidAeroLR to pidLoop(0.1, 3, 0.1, -12, 12).
+set pidAeroLR:setpoint to 0.
+lock tarYawAng to 0 - pidAeroLR:update(time:seconds, lrDelta).
+
+lock fbDelta to (((adjAlt/abs(verticalspeed)) * SHIP:groundspeed) - adjDist) + (spdCoast - (SHIP:groundspeed * 4.3)).
+
+//lock steering to lookdirup(srfRetrograde:vector * angleAxis(tarPitAng, SHIP:facing:starvector), vecLndPad).
+lock steering to lookdirup(srfRetrograde:vector * angleAxis(tarYawAng, SHIP:facing:topvector), vecLndPad).
+
 local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
-lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
+// Aim retrograde but reduce bearing to pad
+set pidEBYaw TO pidLoop(0.1, 10, 0.2, -12, 12).
+set pidEBYaw:setpoint to 0.
+lock tarYawAng to 0 - pidEBYaw:update(time:seconds, lrDelta).
 
+set pidEBPit TO pidLoop(0.1, 10, 0.2, -12, 12).
+set pidEBPit:setpoint to 0.
+lock tarPitAng to 0 - pidEBPit:update(time:seconds, fbDelta).
+
+lock steering to lookdirup(srfRetrograde:vector * angleAxis(tarYawAng, SHIP:facing:topvector) * angleAxis(tarPitAng, SHIP:facing:starvector), vecLndPad).
 local timEntBrn is time:seconds + secEntBrn.
 until time:seconds > timEntBrn { write_screen("Entry burn"). }
 
 // RE-ENTRY
 set throttle to 0.
 
-lock angVector to vAng(srfPrograde:vector, landingPad:position).
-lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
-lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
+lock ptRatio to (685 - SHIP:groundspeed) / 109.
+lock fbDelta to 0 - (adjDist - (SHIP:altitude / ptRatio)).
 
+set pidAeroFB to pidLoop(0.025, 3, 0.1, -10, 10).
+set pidAeroFB:setpoint to 0.
+lock tarPitAng to pidAeroFB:update(time:seconds, fbDelta).
+
+lock tarYawAng to 0 - pidAeroLR:update(time:seconds, lrDelta).
+//lock steering to lookdirup(srfRetrograde:vector * angleAxis(tarPitAng, SHIP:facing:starvector), vecLndPad).
+lock steering to lookdirup(srfRetrograde:vector * angleAxis(tarYawAng, SHIP:facing:topvector) * angleAxis(tarPitAng, SHIP:facing:starvector), vecLndPad).
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // FINAL APPROACH
@@ -279,34 +309,34 @@ until SHIP:altitude < altLndBrn {
 print "                        " at(0, 19).
 
 // ENGINE SPOOL
+lock fbDelta to 0.
+unlock adjAlt.
+unlock adjDist.
+unlock ptRatio.
 lock throttle to 1.
 set timEngSpl to time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // LANDING BURN
-set shHeight to 20.
-lock altAdj to alt:radar - shHeight.
-
-lock angVector to vAng(srfPrograde:vector, landingPad:position).
-lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
-lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
-
-until SHIP:verticalspeed > -200 { write_screen("Landing burn"). }
-
-set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
-set pidThrottle:setpoint to 0.
-lock tarVSpeed to min(0 - ((altAdj - altFinal) / 6), -45).
-lock throttle to pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed).
+lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
+until SHIP:verticalspeed > -300 { write_screen("Landing burn"). }
 
 // TARGET PAD
+lock steering to lookdirup(vecLndPad + (max(150, padDist * 5000) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 until SHIP:verticalspeed > -20 { write_screen("Target pad"). }
-//lock steering to lookdirup(vecLndPad + (max(150, padDist * 5000) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 
 // Shutdown 4 gimbal engines
 for RG in colRGOdd { RG:Shutdown. }
 set engines to 5.
 
 // PAD HOVER
+set shHeight to 20.
+lock altAdj to alt:radar - shHeight.
+set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
+set pidThrottle:setpoint to 0.
+lock tarVSpeed to 0 - ((altAdj - altFinal) * (SHIP:groundspeed / surfDist) * 2).
+lock throttle to pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed).
+
 until surfDist < 5 and SHIP:groundspeed < 2 and SHIP:altitude < 300 {
     write_screen("Pad approach").
     if remProp < 3 {
