@@ -12,15 +12,15 @@ function write_console {
     print "----------------------------" at (0, 3).
     print "Hrz speed:    " at (0, 4).
     print "Vrt speed:    " at (0, 5).
-    print "----------------------------" at (0, 6).
-    print "Srf distance: " at (0, 7).
-    print "Pad distance: " at (0, 8).
-    print "Target pitch: " at (0, 9).
-    print "Target VSpd:  " at (0, 10).
-    print "----------------------------" at (0, 11).
-    print "Pad bearing:  " at (0, 12).
-    print "Target yaw:   " at (0, 13).
-    print "L/R delta(m): " at (0, 14).
+    print "Air speed:    " at (0, 6).
+    print "----------------------------" at (0, 7).
+    print "Srf distance: " at (0, 8).
+    print "Pad distance: " at (0, 9).
+    print "----------------------------" at (0, 10).
+    print "Pad bearing:  " at (0, 11).
+    print "Vector angle: " at (0, 12).
+    print "Target vAng:  " at (0, 13).
+    print "Target vSpd:  " at (0, 14).
     print "----------------------------" at (0, 15).
     print "Throttle:     " at (0, 16).
     print "Engines:      " at (0, 17).
@@ -34,19 +34,19 @@ function write_screen {
     // clearScreen.
     print phase + "        " at (14, 0).
     // print "----------------------------".
-    print round(SHIP:altitude / 1000, 2) + "    " at (14, 2).
+    print round(SHIP:altitude, 0) + "    " at (14, 2).
     // print "----------------------------".
     print round(SHIP:groundspeed, 0) + "    " at (14, 4).
     print round(SHIP:verticalspeed, 0) + "    " at (14, 5).
+    print round(SHIP:airspeed, 0) + "    " at (14, 6).
     // print "----------------------------".
-    print round(surfDist / 1000, 2) + "    " at (14, 7).
-    print round(padDist, 2) + "    " at (14, 8).
-    print round(tarPitAng, 2) + "    " at (14, 9).
-    print round(tarVSpeed, 0) + "    " at (14, 10).
+    print round(surfDist, 0) + "    " at (14, 8).
+    print round(padDist, 0) + "    " at (14, 9).
     // print "----------------------------".
-    print round(padBear, 2) + "    " at (14, 12).
-    print round(tarYawAng, 2) + "    " at (14, 13).
-    print round(lrDelta, 0) + "    " at (14, 14).
+    print round(padBear, 2) + "    " at (14, 11).
+    print round(angVector, 2) + "    " at (14, 12).
+    print round(tarVAngle, 2) + "    " at (14, 13).
+    print round(tarVSpeed, 0) + "    " at (14, 14).
     // print "----------------------------".
     print round(throttle, 2) + "    " at (14, 16).
     print round(engines, 0) + "    " at (14, 17).
@@ -54,16 +54,16 @@ function write_screen {
 
     local logline is time:seconds + ",".
     set logline to logline + phase + ",".
-    set logline to logline + round(SHIP:altitude / 1000, 2) + ",".
+    set logline to logline + round(SHIP:altitude, 0) + ",".
     set logline to logline + round(SHIP:groundspeed, 0) + ",".
     set logline to logline + round(SHIP:verticalspeed, 0) + ",".
-    set logline to logline + round(surfDist / 1000, 2) + ",".
-    set logline to logline + round(padDist, 2) + ",".
-    set logline to logline + round(tarPitAng, 2) + ",".
-    set logline to logline + round(tarVSpeed, 0) + ",".
+    set logline to logline + round(SHIP:airspeed, 0) + ",".
+    set logline to logline + round(surfDist, 0) + ",".
+    set logline to logline + round(padDist, 0) + ",".
     set logline to logline + round(padBear, 2) + ",".
-    set logline to logline + round(tarYawAng, 2) + ",".
-    set logline to logline + round(lrDelta, 0) + ",".
+    set logline to logline + round(angVector, 2) + ",".
+    set logline to logline + round(tarVAngle, 2) + ",".
+    set logline to logline + round(tarVSpeed, 0) + ",".
     set logline to logline + round(throttle, 2) + ",".
     set logline to logline + round(engines, 0) + ",".
     set logline to logline + round(remProp, 2) + ",".
@@ -104,6 +104,8 @@ runPath("MD_Ini_SH_Launch").
 global colRB is list(RB01, RB02, RB03, RB04, RB05, RB06, RB07, RB08, RB09, RB10, RB11, RB12, RB13, RB14, RB15, RB16, RB17, RB18, RB19, RB20).
 global colRG is list(RG01, RG02, RG03, RG04, RG05, RG06, RG07, RG08, RG09).
 global colRGOdd is list(RG03, RG05, RG07, RG09).
+global colRGTwo is list(RG04, RG08).
+global colRGEven is list(RG02, RG04, RG06, RG08).
 
 // Grid fin group
 global colGF is list(FLCS, FRCS, RLCS, RRCS).
@@ -111,6 +113,7 @@ global colGF is list(FLCS, FRCS, RLCS, RRCS).
 // Landing pad - tower catch
 //global landingPad is latlng(26.0359779, -97.1531888).
 global landingPad is latlng(26.0359779, -97.1530888).
+set landingPad to latlng(26.0359779, -97.1531888).
 global padEntDir is 270.
 global engines is 29.
 
@@ -119,15 +122,13 @@ lock remProp to (FT:Resources[0]:amount / 2268046) * 100.
 
 // Track distance and heading to pad
 lock SHHeading to heading_of_vector(SHIP:srfprograde:vector).
-lock padDist to landingPad:distance / 1000.
+lock padDist to landingPad:distance.
 lock padBear to relative_bearing(SHHeading, landingPad:heading).
 lock vecLndPad to vxcl(up:vector, landingPad:position).
 lock vecSrfVel to vxcl(up:vector, SHIP:velocity:surface).
 lock surfDist to (vecLndPad - vxcl(up:vector, SHIP:geoposition:position)):mag.
-lock lrDelta to sin(padBear) * surfDist.
-lock fbDelta to 0.
-lock tarYawAng to 0.
-lock tarPitAng to 0.
+lock angVector to 0.
+lock tarVAngle to 0.
 lock tarVSpeed to 0.
 
 // Write first line of log
@@ -137,13 +138,13 @@ set logline to logline + "Phase,".
 set logline to logline + "Altitude,".
 set logline to logline + "Horizontal speed,".
 set logline to logline + "Vertical speed,".
-set logline to logline + "Surface distance,".
+set logline to logline + "Air Speed,".
+set logline to logline + "Srf distance,".
 set logline to logline + "Pad distance,".
-set logline to logline + "Target pitch,".
-set logline to logline + "F/B Delta,".
 set logline to logline + "Pad bearing,".
-set logline to logline + "Target Yaw,".
-set logline to logline + "L/R Delta,".
+set logline to logline + "Vector angle,".
+set logline to logline + "Target VAng,".
+set logline to logline + "Target VSpd,".
 set logline to logline + "Throttle,".
 set logline to logline + "Engines,".
 set logline to logline + "Rem prop,".
@@ -218,7 +219,7 @@ if remProp > 18 {
 
 }
 
-set spdCoast to SHIP:groundspeed.
+//set spdCoast to SHIP:groundspeed.
 
 // Post BoostBack
 set throttle to 0.
@@ -244,7 +245,7 @@ global secEngSpl is 3.
 lock steering to lookdirup(srfRetrograde:vector, heading(0, 90):vector).
 until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 
-// ENTRY BURN
+// ******** ENTRY BURN ********
 rcs on.
 set throttle to 1.
 
@@ -256,7 +257,7 @@ lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
 local timEntBrn is time:seconds + secEntBrn.
 until time:seconds > timEntBrn { write_screen("Entry burn"). }
 
-// RE-ENTRY
+// ******** RE-ENTRY ********
 set throttle to 0.
 
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
@@ -265,7 +266,7 @@ lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 
 
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
-// FINAL APPROACH
+// ******** FINAL APPROACH ********
 global altFinal is 125.
 global engAcl is 42.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + altFinal.
@@ -278,40 +279,46 @@ until SHIP:altitude < altLndBrn {
 }
 print "                        " at(0, 19).
 
-// ENGINE SPOOL
+// ******** ENGINE SPOOL ********
 lock throttle to 1.
 set timEngSpl to time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
-// LANDING BURN
+// ******** LANDING BURN ********
 set shHeight to 20.
-lock altAdj to alt:radar - shHeight.
+lock altAdj to alt:radar - shHeight - altFinal.
 
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
 lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
+lock tarVSpeed to 0 - (sqrt(altAdj / 1000) * 200).
 
-until SHIP:verticalspeed > -200 { write_screen("Landing burn"). }
+until SHIP:verticalspeed > tarVSpeed { write_screen("Landing burn"). }
 
 set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
-lock tarVSpeed to min(0 - ((altAdj - altFinal) / 6), -45).
-lock throttle to pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed).
+lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
-// TARGET PAD
-until SHIP:verticalspeed > -20 { write_screen("Target pad"). }
-//lock steering to lookdirup(vecLndPad + (max(150, padDist * 5000) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
+until altAdj < 200 { write_screen("Balance throttle"). }
 
-// Shutdown 4 gimbal engines
+// ******** TARGET PAD ********
+until SHIP:verticalspeed > -25 { write_screen("Target pad"). }
+lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
+
+// Shutdown gimbal engines
 for RG in colRGOdd { RG:Shutdown. }
+//for RG in colRGTwo { RG:Shutdown. }
 set engines to 5.
 
-// PAD HOVER
+//lock tarVSpeed to min(0 - 5, 0 - altAdj / 5).
+lock tarVSpeed to 0 - ((altAdj - altFinal) * (SHIP:groundspeed / surfDist) * 2).
+
+// ******** PAD HOVER ********
 until surfDist < 5 and SHIP:groundspeed < 2 and SHIP:altitude < 300 {
     write_screen("Pad approach").
     if remProp < 3 {
-        RG01:Shutdown.
-        set engines to 4.
+        for RG in colRGTwo { RG:Shutdown. }
+        set engines to 3.
     }
 }
 
@@ -321,12 +328,12 @@ set altFinal to 80.
 until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
     write_screen("Pad descent").
     if remProp < 3 {
-        RG01:Shutdown.
-        set engines to 4.
+        for RG in colRGTwo { RG:Shutdown. }
+        set engines to 3.
     }
 }
 
-// DESCENT
+// ******** DESCENT ********
 
 // Shutdown centre engine
 RG01:Shutdown.
