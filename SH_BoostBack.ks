@@ -104,8 +104,8 @@ runPath("MD_Ini_SH_Launch").
 global colRB is list(RB01, RB02, RB03, RB04, RB05, RB06, RB07, RB08, RB09, RB10, RB11, RB12, RB13, RB14, RB15, RB16, RB17, RB18, RB19, RB20).
 global colRG is list(RG01, RG02, RG03, RG04, RG05, RG06, RG07, RG08, RG09).
 global colRGOdd is list(RG03, RG05, RG07, RG09).
-global colRGTwo is list(RG04, RG08).
-global colRGEven is list(RG02, RG04, RG06, RG08).
+global colRG26 is list(RG02, RG06).
+global colRG48 is list(RG04, RG08).
 
 // Grid fin group
 global colGF is list(FLCS, FRCS, RLCS, RRCS).
@@ -155,6 +155,8 @@ write_console().
 //---------------------------------------------------------------------------------------------------------------------
 // MAIN BODY
 //---------------------------------------------------------------------------------------------------------------------
+
+set apoDist to 15000.
 
 if remProp > 18 {
 
@@ -213,13 +215,14 @@ if remProp > 18 {
     }
     print "                                  " at(0, 19).
     unlock tarSrfVel.
+    set apoDist to timeFall * tarSrfVel.
     
     // COAST
     rcs off.
 
 }
 
-//set spdCoast to SHIP:groundspeed.
+
 
 // Post BoostBack
 set throttle to 0.
@@ -249,6 +252,19 @@ until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 rcs on.
 set throttle to 1.
 
+// Calculate desired angle for falling trajectory
+set arcShape to 10.
+lock tarVAngle to arcTan(arcShape - ((surfDist / apoDist) * arcShape)).
+
+// lock timeFall to abs(altitude / verticalspeed) + sqrt((2 * altitude) / 9.8).
+// lock tarSrfVel to surfDist / timeFall.
+// lock tarVAngle to arcTan(verticalspeed / tarSrfVel).
+
+// Calculate attack vector to drag motion vector towards desired vector - want to replace landingPad:position with desired vector
+lock angVector to vAng(srfPrograde:vector, landingPad:position).
+lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
+lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
+
 local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
@@ -260,6 +276,12 @@ until time:seconds > timEntBrn { write_screen("Entry burn"). }
 // ******** RE-ENTRY ********
 set throttle to 0.
 
+// Calculate desired angle for falling trajectory
+// lock timeFall to abs(altitude / verticalspeed) + sqrt((2 * altitude) / 9.8).
+// lock tarSrfVel to surfDist / timeFall.
+// lock tarVAngle to arcTan(verticalspeed / tarSrfVel).
+
+// Calculate attack vector to drag motion vector towards desired vector - want to replace landingPad:position with desired vector
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
 lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
@@ -267,7 +289,7 @@ lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // ******** FINAL APPROACH ********
-global altFinal is 125.
+global altFinal is 80.
 global engAcl is 42.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + altFinal.
 
@@ -307,17 +329,18 @@ lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 
 
 // Shutdown gimbal engines
 for RG in colRGOdd { RG:Shutdown. }
-//for RG in colRGTwo { RG:Shutdown. }
+//for RG in colRG26 { RG:Shutdown. }
 set engines to 5.
 
 //lock tarVSpeed to min(0 - 5, 0 - altAdj / 5).
-lock tarVSpeed to 0 - ((altAdj - altFinal) * (SHIP:groundspeed / surfDist) * 2).
+//lock tarVSpeed to 0 - ((altAdj - altFinal) * (SHIP:groundspeed / surfDist) * 2).
+lock tarVSpeed to (0 - altAdj) / 3.
 
 // ******** PAD HOVER ********
 until surfDist < 5 and SHIP:groundspeed < 2 and SHIP:altitude < 300 {
     write_screen("Pad approach").
-    if remProp < 3 {
-        for RG in colRGTwo { RG:Shutdown. }
+    if verticalspeed > tarVSpeed + 2 {
+        for RG in colRG26 { RG:Shutdown. }
         set engines to 3.
     }
 }
@@ -327,21 +350,26 @@ set altFinal to 80.
 
 until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
     write_screen("Pad descent").
-    if remProp < 3 {
-        for RG in colRGTwo { RG:Shutdown. }
+    if verticalspeed > tarVSpeed + 2 {
+        for RG in colRG26 { RG:Shutdown. }
         set engines to 3.
+        if verticalSpeed > -3 {
+            for RG in colRG48 { RG:Shutdown. }
+            set engines to 1.
+        }
     }
 }
 
 // ******** DESCENT ********
 
 // Shutdown centre engine
-RG01:Shutdown.
-set engines to 4.
+// RG01:Shutdown.
+// set engines to 4.
 
 lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 
-set tarVSpeed to 0 - 3 - (SHIP:altitude / 20).
+//set tarVSpeed to 0 - 3 - (SHIP:altitude / 20).
+set tarVSpeed to -3.
 
 until SHIP:altitude < 150 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
 
