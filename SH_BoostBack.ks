@@ -113,7 +113,7 @@ global colGF is list(FLCS, FRCS, RLCS, RRCS).
 // Landing pad - tower catch
 //global landingPad is latlng(26.0359779, -97.1531888).
 global landingPad is latlng(26.0359779, -97.1530888).
-set landingPad to latlng(26.0359779, -97.1531888).
+//set landingPad to latlng(26.0359779, -97.1531888).
 global padEntDir is 270.
 global engines is 29.
 
@@ -205,7 +205,7 @@ if remProp > 18 {
     for RG in colRGOdd { RG:Shutdown. }
     set engines to 5.
 
-    local overshoot is 1000.
+    local overshoot is 700.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
@@ -214,8 +214,8 @@ if remProp > 18 {
         print "tarSrfVel:    " + round(tarSrfVel, 0) + "    " at(0, 19).
     }
     print "                                  " at(0, 19).
-    unlock tarSrfVel.
     set apoDist to timeFall * tarSrfVel.
+    unlock tarSrfVel.
     
     // COAST
     rcs off.
@@ -278,7 +278,7 @@ lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // ******** FINAL APPROACH ********
-global altFinal is 80.
+global altFinal is 100.
 global engAcl is 42.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + altFinal.
 
@@ -339,10 +339,6 @@ until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
     if verticalspeed > tarVSpeed + 2 {
         for RG in colRG26 { RG:Shutdown. }
         set engines to 3.
-        if verticalSpeed > -3 {
-            for RG in colRG48 { RG:Shutdown. }
-            set engines to 1.
-        }
     }
 }
 
