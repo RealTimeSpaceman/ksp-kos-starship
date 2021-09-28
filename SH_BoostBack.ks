@@ -156,7 +156,7 @@ write_console().
 // MAIN BODY
 //---------------------------------------------------------------------------------------------------------------------
 
-set apoDist to 15000.
+set apoDist to 35000.
 
 if remProp > 18 {
 
@@ -256,7 +256,7 @@ lock tarVAngle to arcTan(arcShape - ((surfDist / apoDist) * arcShape)).
 
 // Calculate attack vector to drag motion vector towards desired vector - want to replace landingPad:position with desired vector
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
-lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
+lock tarDirect to angleAxis(angVector * 4, vcrs(landingPad:position, srfRetrograde:vector)).
 lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 local timEngSpl is time:seconds + secEngSpl.
@@ -269,12 +269,7 @@ until time:seconds > timEntBrn { write_screen("Entry burn"). }
 
 // ******** RE-ENTRY ********
 set throttle to 0.
-
-// Calculate attack vector to drag motion vector towards desired vector - want to replace landingPad:position with desired vector
-lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
-lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
-
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // ******** FINAL APPROACH ********
