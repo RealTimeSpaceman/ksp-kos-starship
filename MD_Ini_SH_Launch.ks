@@ -1,8 +1,11 @@
 
 // Kill rcs
-set SS:control:pitch to 0.
-set SS:control:yaw to 0.
-set SS:control:roll to 0.
+set SH:control:pitch to 0.
+set SH:control:yaw to 0.
+set SH:control:roll to 0.
+
+// // Active SuperHeavy engine cluster
+// SHEC:Activate.
 
 // Activate engines
 RB01:Activate.

@@ -23,8 +23,9 @@ function write_console {
     print "Target vSpd:  " at (0, 14).
     print "----------------------------" at (0, 15).
     print "Throttle:     " at (0, 16).
-    print "Engines:      " at (0, 17).
-    print "Propellant %: " at (0, 18).
+    print "Max thrust:   " at (0, 17).
+    print "Thrust:       " at (0, 18).
+    print "Propellant %: " at (0, 19).
 
 }
 
@@ -49,8 +50,9 @@ function write_screen {
     print round(tarVSpeed, 0) + "    " at (14, 14).
     // print "----------------------------".
     print round(throttle, 2) + "    " at (14, 16).
-    print round(engines, 0) + "    " at (14, 17).
-    print round(remProp, 2) + "    " at (14, 18).
+    print round(SHIP:MaxThrust, 0) + "    " at (14, 17).
+    print round(SHEC:Thrust, 0) + "    " at (14, 18).
+    print round(remProp, 2) + "    " at (14, 19).
 
     local logline is time:seconds + ",".
     set logline to logline + phase + ",".
@@ -100,22 +102,24 @@ runPath("MD_Ini_SH_Launch").
 // INITIALISE
 //---------------------------------------------------------------------------------------------------------------------
 
-// Engine groups
-global colRB is list(RB01, RB02, RB03, RB04, RB05, RB06, RB07, RB08, RB09, RB10, RB11, RB12, RB13, RB14, RB15, RB16, RB17, RB18, RB19, RB20).
-global colRG is list(RG01, RG02, RG03, RG04, RG05, RG06, RG07, RG08, RG09).
-global colRGOdd is list(RG03, RG05, RG07, RG09).
-global colRG26 is list(RG02, RG06).
-global colRG48 is list(RG04, RG08).
+// // Engine groups
+// global colRB is list(RB01, RB02, RB03, RB04, RB05, RB06, RB07, RB08, RB09, RB10, RB11, RB12, RB13, RB14, RB15, RB16, RB17, RB18, RB19, RB20).
+// global colRG is list(RG01, RG02, RG03, RG04, RG05, RG06, RG07, RG08, RG09).
+// global colRGOdd is list(RG03, RG05, RG07, RG09).
+// global colRG26 is list(RG02, RG06).
+// global colRG48 is list(RG04, RG08).
 
 // Grid fin group
 global colGF is list(FLCS, FRCS, RLCS, RRCS).
 
 // Landing pad - tower catch
-//global landingPad is latlng(26.0384593, -97.1533248). // Catch point
-//global landingPad is latlng(26.0384823, -97.1532032). // Mid point
-global landingPad is latlng(26.0385053, -97.1530816). // Aim point
-
-global padEntDir is 270.
+//global landingPad is latlng(26.0384537, -97.1532676). // Tower catch
+//global landingPad is latlng(26.0385378, -97.1531998). // mid-way
+global landingPad is latlng(26.0386219, -97.1561320). // Aim point
+//global landingPad is latlng(26.0383845, -97.1564766).
+//set landingPad to latlng(26.0383845, -97.1565766).
+//global padEntDir is 270.
+global padEntDir is 262.
 global engines is 29.
 
 // Track remaining propellant
@@ -161,12 +165,17 @@ set apoDist to 35000.
 
 if remProp > 18 {
 
+    // HOLD DOWN
+    until SHEC:Thrust > 75000 { write_screen("Hold Down"). }
+    OPLC:DoAction("release clamp", true).
+
     // ASCENT
     until remProp < 18 { write_screen("Ascent"). }
 
     // STAGE - shutdown engines
-    for RB in colRB { RB:Shutdown. }
-    for RG in colRG { RG:Shutdown. }
+    // for RB in colRB { RB:Shutdown. }
+    // for RG in colRG { RG:Shutdown. }
+    SHEC:Shutdown.
     set engines to 0.
     stage.
 
@@ -186,13 +195,25 @@ if remProp > 18 {
     set timeRCS to time:seconds + 4.
     until time:seconds > timeRCS { write_screen("Flip"). }
     local headBB is heading_of_vector(srfRetrograde:vector).
-    lock steering to lookdirup(heading(headBB, 0):vector, heading(0, -90):vector). // Aim at horizon in direction of retrograde
+    lock steering to lookdirup(heading(headBB, 0):vector, up:inverse:vector). // Aim at horizon in direction of retrograde
     until vAng(SHIP:facing:vector, heading(headBB, 0):vector) < 20 { write_screen("Flip"). }
 
     // BOOSTBACK - Activate gimbal engines
-    for RG in colRG { RG:Activate. }
+    // for RG in colRG { RG:Activate. }
+    // Ullage control
+    set SHIP:control:fore to 1.
+    set timUllage to time:seconds + 1.
+    until time:seconds > timUllage { write_screen("Ullage motors"). }
+
+    // Activate middle inner engines
+    until ECSW:GetField("mode") = "Middle Inner" { ECSW:DoAction("next engine mode", true). }
+    ECAE:DoAction("shutdown engine", true).
+    ECMI:DoAction("activate engine", true).
+    ECCT:DoAction("activate engine", true).
+    SHEC:Activate.
     set engines to 9.
     set throttle to 1.
+    set SHIP:control:fore to 0.
 
     until abs(padBear) < 50 { write_screen("Boostback"). }
 
@@ -200,11 +221,19 @@ if remProp > 18 {
     set pidTarPad TO pidLoop(10, 0.5, 2, -30, 30).
     set pidTarPad:setpoint to 0.
     // Aim at horizon, reduce bearing to pad to zero
-    lock steering to lookdirup(heading(landingPad:heading - pidTarPad:update(time:seconds, padBear), 0):vector, heading(0, -90):vector).
+    lock steering to lookdirup(heading(landingPad:heading - pidTarPad:update(time:seconds, padBear), 0):vector, up:vector).
 
-    // Shutdown 4 gimbal engines
-    for RG in colRGOdd { RG:Shutdown. }
-    set engines to 5.
+    // Shutdown 4 gimbal engines ***************************
+    // for RG in colRGOdd { RG:Shutdown. }
+    // set engines to 5.
+
+    // Activate centre three engines
+    // until ECSW:GetField("mode") = "Center Three" { ECSW:DoAction("next engine mode", true). }
+    // ECAE:DoAction("shutdown engine", true).
+    // ECMI:DoAction("shutdown engine", true).
+    // ECCT:DoAction("activate engine", true).
+    until SHIP:maxthrust < 7000 { ECSW:DoAction("next engine mode", true). }
+    set engines to 3.
 
     local overshoot is 700.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
@@ -212,9 +241,9 @@ if remProp > 18 {
 
     until SHIP:groundspeed > tarSrfVel {
         write_screen("Target Pad").
-        print "tarSrfVel:    " + round(tarSrfVel, 0) + "    " at(0, 19).
+        print "tarSrfVel:    " + round(tarSrfVel, 0) + "    " at(0, 20).
     }
-    print "                                  " at(0, 19).
+    print "                                  " at(0, 20).
     set apoDist to timeFall * tarSrfVel.
     unlock tarSrfVel.
     
@@ -226,12 +255,22 @@ if remProp > 18 {
 // Post BoostBack
 set throttle to 0.
 
-// Shutdown boost engines
-for RB in colRB { RB:Shutdown. }
+// Shutdown boost engines ***************************
+// for RB in colRB { RB:Shutdown. }
 
-// Activate gimbal engines
-for RG in colRGOdd { RG:Activate. }
+// Activate gimbal engines ***************************
+// for RG in colRGOdd { RG:Activate. }
+// set engines to 9.
+
+// Activate centre three engines
+// until ECSW:GetField("mode") = "Center Three" { ECSW:DoAction("next engine mode", true). }
+// ECAE:DoAction("shutdown engine", true).
+// ECMI:DoAction("shutdown engine", true).
+// ECCT:DoAction("activate engine", true).
+ECSW:DoAction("next engine mode", true).
+until SHIP:maxthrust > 7000 and SHIP:maxthrust < 25000 { ECSW:DoAction("next engine mode", true). }
 set engines to 9.
+SHEC:Shutdown.
 
 // Enable grid fin control
 for GF in colGF{ GF:setfield("pitch", false). }
@@ -239,86 +278,97 @@ for GF in colGF{ GF:setfield("yaw", false). }
 for GF in colGF{ GF:setfield("roll", false). }
 
 // Variables for entry burn
+global altEntRCS is 36000.
 global altEntBrn is 33000.
-global secEntBrn is 8.
-global secEngSpl is 3.
+global secEntBrn is 10.
+global secEngSpl is 0.
+
+// Activate RCS
+lock steering to lookdirup(srfRetrograde:vector, heading(0, 90):vector).
+until SHIP:altitude < altEntRCS { write_screen("Coast"). }
+rcs on.
 
 // Aim at retrograde
 lock steering to lookdirup(srfRetrograde:vector, heading(0, 90):vector).
 until SHIP:altitude < altEntBrn { write_screen("Coast"). }
 
 // ******** ENTRY BURN ********
-rcs on.
+SHEC:Activate.
 set throttle to 1.
 
 // Calculate desired angle for falling trajectory - not using yet
-set arcShape to 10.
-lock tarVAngle to arcTan(arcShape - ((surfDist / apoDist) * arcShape)).
+// set arcShape to 10.
+// lock tarVAngle to arcTan(arcShape - ((surfDist / apoDist) * arcShape)).
 
-// Calculate attack vector to drag prograde vector towards the landing point vector - perhaps want to replace landingPad:position with desired vector to avoid direct line
-
-// angVector (scalar) is the angle between the prograde vector and the vector to the landing point - want to minimise this
-lock angVector to vAng(srfPrograde:vector, landingPad:position).
-
-// tarDirect (direction) is a rotation of degrees (1st parameter) around an axis (2nd parameter) here defined as the cross product of the two relevant vectors
-lock tarDirect to angleAxis(angVector * (0 - 4) - 1, vcrs(landingPad:position, srfRetrograde:vector)).
-
-// Here we lock steering (direction) to the product of tardirect and the retrograde vector
+// Calculate attack vector to drag motion vector towards landingPad:position
+lock angVector to vAng(srfPrograde:vector, landingPad:position). //Angle between direction of travel and direction of landing pad
+lock angCorrect to max(5, angVector * 6).
+lock tarDirect to angleAxis(angCorrect, vcrs(landingPad:position, srfRetrograde:vector)).
 lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
+//lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
+
 local timEntBrn is time:seconds + secEntBrn.
-until time:seconds > timEntBrn { write_screen("Entry burn"). }
+until time:seconds > timEntBrn {
+    write_screen("Entry burn").
+    if (SHEC:Thrust > SHIP:maxThrust) { until SHEC:Thrust > 7000 and SHEC:Thrust < 25000 { ECSW:DoAction("next engine mode", true). } }
+}
 
 // ******** RE-ENTRY ********
 set throttle to 0.
+ECSW:DoAction("next engine mode", true).
+until SHIP:maxthrust > 7000 and SHIP:maxthrust < 25000 { ECSW:DoAction("next engine mode", true). }
+set engines to 9.
+SHEC:Shutdown.
 
-// We swap tarDirect to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
-lock tarDirect to angleAxis(min(15 + angVector, angVector * 15), vcrs(landingPad:position, srfRetrograde:vector)).
-lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
-
+lock tarDirect to angleAxis(0 - angCorrect, vcrs(landingPad:position, srfRetrograde:vector)).
+//lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 until SHIP:altitude < 16000 { write_screen("Re-entry"). }
 
 // ******** FINAL APPROACH ********
 global altFinal is 220.
-global engAcl is 20.
+global engAcl is 60.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + altFinal.
 
 until SHIP:altitude < altLndBrn {
+
     write_screen("Final approach").
-    print "Suicide burn at:" + round(altLndBrn, 0) + "    " at(0, 19).
+    print "Suicide burn at:" + round(altLndBrn, 0) + "    " at(0, 20).
+
 }
-print "                        " at(0, 19).
+print "                        " at(0, 20).
 
 // ******** ENGINE SPOOL ********
+// Activate middle engines
+// until ECSW:GetField("mode") = "Middle Inner" { ECSW:DoAction("next engine mode", true). }
+// ECAE:DoAction("shutdown engine", true).
+// ECMI:DoAction("activate engine", true).
+// ECCT:DoAction("activate engine", true).
+SHEC:Activate.
+until SHIP:maxthrust > 7000 and SHIP:maxthrust < 25000 { ECSW:DoAction("next engine mode", true). }
+set engines to 9.
 lock throttle to 1.
 set timEngSpl to time:seconds + secEngSpl.
-
-// Landing burn at retrograde for stability
-//lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
-
-// Swap tardiect back now we are flying under thrust
-lock tarDirect to angleAxis(max(0 - 30, angVector * (0 - 8) - 1), vcrs(landingPad:position, srfRetrograde:vector)).
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // ******** LANDING BURN ********
 set shHeight to 20.
 lock altAdj to alt:radar - shHeight - altFinal.
 
-//lock angVector to vAng(srfPrograde:vector, landingPad:position).
-//lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
-//lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
-
+lock angVector to vAng(srfPrograde:vector, landingPad:position).
+lock tarDirect to angleAxis(angVector * 2, vcrs(srfRetrograde:vector, landingPad:position)).
+lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
 lock tarVSpeed to 0 - (sqrt(altAdj / 1000) * 200).
 
 until SHIP:verticalspeed > tarVSpeed { write_screen("Landing burn"). }
 
-set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
+set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.1, 1).
 set pidThrottle:setpoint to 0.
-lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
+lock throttle to max(0.1, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
 until altAdj < 200 { write_screen("Balance throttle"). }
 
@@ -326,28 +376,40 @@ until altAdj < 200 { write_screen("Balance throttle"). }
 until SHIP:verticalspeed > -25 { write_screen("Target pad"). }
 lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 
-// Shutdown gimbal engines
-for RG in colRGOdd { RG:Shutdown. }
-set engines to 5.
+// Shutdown gimbal engines ***************************
+// for RG in colRGOdd { RG:Shutdown. }
+// set engines to 5.
 
 lock tarVSpeed to (0 - altAdj) / 3.
 
 // ******** PAD HOVER ********
-until surfDist < 5 and SHIP:groundspeed < 2 and altAdj < 300 {
+until surfDist < 5 and SHIP:groundspeed < 2 and SHIP:altitude < 300 {
     write_screen("Pad approach").
     if verticalspeed > tarVSpeed + 2 {
-        for RG in colRG26 { RG:Shutdown. }
+        // for RG in colRG26 { RG:Shutdown. } // ***************************
+        // until ECSW:GetField("mode") = "Center Three" { ECSW:DoAction("next engine mode", true). }
+        // ECAE:DoAction("shutdown engine", true).
+        // ECMI:DoAction("shutdown engine", true).
+        // ECCT:DoAction("activate engine", true).
+        until SHIP:maxthrust < 7000 { ECSW:DoAction("next engine mode", true). }
         set engines to 3.
     }
 }
 
-set landingPad to latlng(26.0384593, -97.1533248).
+//set landingPad to latlng(26.0359779, -97.1531888).
+//set landingPad to latlng(26.0383845, -97.1565766).
+set landingPad to latlng(26.0384537, -97.1532676).
 set altFinal to 200.
 
 until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
     write_screen("Pad descent").
     if verticalspeed > tarVSpeed + 2 {
-        for RG in colRG26 { RG:Shutdown. }
+        // for RG in colRG26 { RG:Shutdown. } // ***************************
+        // until ECSW:GetField("mode") = "Center Three" { ECSW:DoAction("next engine mode", true). }
+        // ECAE:DoAction("shutdown engine", true).
+        // ECMI:DoAction("shutdown engine", true).
+        // ECCT:DoAction("activate engine", true).
+        until SHIP:maxthrust < 7000 { ECSW:DoAction("next engine mode", true). }
         set engines to 3.
     }
 }
