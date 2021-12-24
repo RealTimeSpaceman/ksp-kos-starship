@@ -43,3 +43,21 @@ function get_rollnose {
     local fcgShip is SHIP:facing.
     return 0 - arcTan2(-vDot(fcgShip:starvector, rDirection:forevector), vDot(fcgShip:topvector, rDirection:forevector)).
 }
+
+function heading_of_vector { // heading_of_vector returns the heading of the vector (number range 0 to 360)
+    parameter vecT.
+    local east IS VCRS(SHIP:UP:VECTOR, SHIP:NORTH:VECTOR).
+    local trig_x IS VDOT(SHIP:NORTH:VECTOR, vecT).
+    local trig_y IS VDOT(east, vecT).
+    local result IS ARCTAN2(trig_y, trig_x).
+    if result < 0 { return 360 + result. } else { return result. }
+}
+
+function relative_bearing {
+    parameter headA.
+    parameter headB.
+    local delta is headB - headA.
+    if delta > 180 { return delta - 360. }
+    if delta < -180 { return delta + 360. }
+    return delta.
+}
