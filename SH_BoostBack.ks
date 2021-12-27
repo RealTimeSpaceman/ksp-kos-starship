@@ -380,6 +380,8 @@ lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 set tarAlt to 100.
 
 set tarVSpeed to -5.
+for RG in colRG26 { RG:Shutdown. }
+set engines to 3.
 
 until SHIP:altitude < 220 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
 
