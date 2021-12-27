@@ -165,7 +165,7 @@ for GF in colGF{ GF:setfield("yaw", false). }
 for GF in colGF{ GF:setfield("roll", false). }
 
 // Ascent
-global altFinal is 170.
+global tarAlt is 170.
 set shHeight to 20.
 lock altAdj to alt:radar - shHeight.
 // set tarVSpd1 to 20.
@@ -189,18 +189,18 @@ until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 stage.
 
-until altAdj > altFinal / 3 { write_screen("Ascent"). }
+until altAdj > tarAlt / 3 { write_screen("Ascent"). }
 
 rcs on.
 
 // angVector (scalar) is the angle between the prograde vector and the vector to the landing point - want to minimise this
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
 
-lock tarVSpeed to (altFinal - altAdj) / 5.
-
+// This should bring the vehicle towards the target altitude and have it hover at that alt
+lock tarVSpeed to (tarAlt - altAdj) / 5.
 lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
-// until altAdj > altFinal { write_screen("Balance throttle"). }
+// until altAdj > tarAlt { write_screen("Balance throttle"). }
 
 // Shutdown gimbal engines
 for RG in colRGOdd { RG:Shutdown. }
@@ -220,9 +220,9 @@ lock vecThrust to ((vecLndPad / timeToRes) - vecSrfVel).
 lock thrHead to heading_of_vector(vecThrust).
 
 // ******** Hover ********
-lock steering to lookdirup(up:vector, heading(padEntDir, 0):vector).
+//lock steering to lookdirup(up:vector, heading(padEntDir, 0):vector).
 //lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
-//lock steering to lookdirup(vecThrust + ( * up:vector), heading(padEntDir, 0):vector).
+lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):vector).
 
 until surfDist < 25 {
     write_screen("Target CP 1").
@@ -237,7 +237,7 @@ until surfDist < 25 {
 set landingPad to latlng(26.0385053, -97.1530816).
 
 // ******** TARGET check point 2 ********
-until surfDist < 5 and SHIP:groundspeed < 2 and altAdj < 300 {
+until surfDist < 5 and SHIP:groundspeed < 5 and altAdj < 300 {
     write_screen("Target CP 2").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
     set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
@@ -247,9 +247,9 @@ until surfDist < 5 and SHIP:groundspeed < 2 and altAdj < 300 {
 }
 
 set landingPad to latlng(26.0384593, -97.1533248).
-set altFinal to 150.
+set tarAlt to 130.
 
-until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
+until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
     write_screen("Pad descent").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
     set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
@@ -261,17 +261,23 @@ until surfDist < 5 and SHIP:groundspeed < 1 and SHIP:altitude < 300 {
 // ******** DESCENT ********
 
 lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
-set altFinal to 100.
+set tarAlt to 100.
 
-// set tarVSpeed to -3.
+set tarVSpeed to -5.
 
 until SHIP:altitude < 220 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
 
 // Tower Catch
 set throttle to 0.
+set SHIP:control:top to 0.
+set SHIP:control:starboard to 0.
+unlock steering.
 rcs off.
 write_screen("Tower Catch").
 
 
-// Geoposition on final catch: 26.03848131. -97.15330866
-// Looks like 5 decimal places is the most number of useful places
+// Geoposition on final catch 1: 26.03848131. -97.15330866
+// Geoposition on final catch 2: 26.03848398. -97.15330556
+// Geoposition on final catch 3: 26.03848418. -97.15331041
+// Geoposition on final catch A: 26.03845531. -97.15329175
+// Looks like 5-6 decimal places is the most number of useful places
