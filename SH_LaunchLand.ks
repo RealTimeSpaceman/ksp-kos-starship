@@ -374,7 +374,7 @@ lock tarDirect to angleAxis(max(0 - maxDeflect, angVector * (0 - 8) - 1), axsPro
 set shHeight to 20.
 lock altAdj to alt:radar - shHeight.
 
-lock tarVSpeed to 0 - (sqrt(altAdj / 1000) * 150).
+lock tarVSpeed to 0 - (sqrt(altAdj / 1000) * 100).
 
 until SHIP:verticalspeed > tarVSpeed { write_screen("Landing burn"). }
 
