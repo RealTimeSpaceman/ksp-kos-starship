@@ -300,27 +300,28 @@ local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl {
     write_screen("Engine spool").
     // Draw vectors
-    set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
-    set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
-    set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
-    set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
+    // set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
+    // set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
+    // set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
+    // set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
 }
 
 local timEntBrn is time:seconds + secEntBrn.
 until time:seconds > timEntBrn {
     write_screen("Entry burn").
     // Draw vectors
-    set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
-    set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
-    set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
-    set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
+    // set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
+    // set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
+    // set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
+    // set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
 }
 
 // ******** RE-ENTRY ********
 set throttle to 0.
-set maxDeflect to 10.
+set maxDflAer to 10.
+set maxDflThr to 5.
 
-set pidAeroLn to pidLoop(12, 0.01, 0.01, 0, maxDeflect + angVector).
+set pidAeroLn to pidLoop(12, 0.01, 0.01, 0, maxDflAer + angVector).
 set pidAeroLn:setpoint to 0.
 
 // We swap tarDirect to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
@@ -330,14 +331,14 @@ lock tarDirect to angleAxis(pidAeroLn:update(time:seconds, angVector), axsProDes
 until SHIP:altitude < 16000 {
     write_screen("Re-entry").
     // Draw vectors
-    set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
-    set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
-    set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
-    set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
+    // set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
+    // set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
+    // set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
+    // set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
 }
 
 // ******** FINAL APPROACH ********
-global tarAlt is 170.
+global tarAlt is 150.
 global engAcl is 40.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + tarAlt.
 
@@ -345,17 +346,17 @@ until SHIP:altitude < altLndBrn {
     write_screen("Final approach").
     print "Suicide burn at:" + round(altLndBrn, 0) + "    " at(0, 20).
     // Draw vectors
-    set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
-    set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
-    set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
-    set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
+    // set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 0.2, true, true).
+    // set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.001, true, true).
+    // set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
+    // set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
 }
 print "                        " at(0, 20).
 
-set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, false, 0.2, true, true).
-set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, false, 0.001, true, true).
-set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, false, 0.001, true, true).
-set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, false, 0.2, true, true).
+// set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, false, 0.2, true, true).
+// set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, false, 0.001, true, true).
+// set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, false, 0.001, true, true).
+// set vdAxs to vecDraw(v(0,0,0), axsPadZen, rgb(1, 0.5, 0), "Axis", 0.05, false, 0.2, true, true).
 
 // ******** ENGINE SPOOL ********
 lock throttle to 1.
@@ -368,13 +369,13 @@ until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 // Swap angVector to landingPad vector and reverse tardirect now we are flying under thrust
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
-lock tarDirect to angleAxis(max(0 - maxDeflect, angVector * (0 - 8) - 1), axsProDes).
+lock tarDirect to angleAxis(max(0 - maxDflThr, angVector * (0 - 8) - 1), axsProDes).
 
 // ******** LANDING BURN ********
-set shHeight to 20.
-lock altAdj to alt:radar - shHeight.
+// set shHeight to 20.
+// lock altAdj to alt:radar.
 
-lock tarVSpeed to 0 - (sqrt(altAdj / 1000) * 100).
+lock tarVSpeed to 0 - (sqrt((alt:radar - tarAlt) / 1000) * 100).
 
 until SHIP:verticalspeed > tarVSpeed { write_screen("Landing burn"). }
 
@@ -387,8 +388,8 @@ set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
 lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
-until altAdj < 500 { write_screen("Balance throttle"). }
-lock tarVSpeed to (tarAlt - altAdj) / 5.
+until alt:radar < 300 { write_screen("Balance throttle"). }
+lock tarVSpeed to (tarAlt - alt:radar) / 5.
 
 // ******** TARGET PAD ********
 // until SHIP:verticalspeed > -25 { write_screen("Target pad"). }
@@ -406,7 +407,7 @@ lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):
 // lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 
 // ******** PAD APPROACH ********
-until surfDist < 5 and SHIP:groundspeed < 5 and altAdj < 300 {
+until surfDist < 5 and SHIP:groundspeed < 5 and alt:radar < 200 {
     write_screen("Pad approach").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
     set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
@@ -416,7 +417,7 @@ until surfDist < 5 and SHIP:groundspeed < 5 and altAdj < 300 {
 }
 
 set landingPad to latlng(26.0384593, -97.1533248).
-set tarAlt to 130.
+set tarAlt to 110.
 
 // ******** PAD DESCENT ********
 until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
@@ -430,7 +431,7 @@ until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
 
 // ******** DESCENT ********
 lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
-set tarAlt to 100.
+set tarAlt to 80.
 
 set tarVSpeed to -5.
 for RG in colRG26 { RG:Shutdown. }
