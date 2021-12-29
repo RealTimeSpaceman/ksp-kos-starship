@@ -293,7 +293,7 @@ lock angVector to vAng(srfPrograde:vector, vecDesire).
 // tarDirect (direction) is a rotation of degrees (1st parameter) around an axis (2nd parameter) here defined as the cross product of the two relevant vectors
 lock tarDirect to angleAxis(angVector * (0 - 4) - 1, axsProDes).
 
-// Here we lock steering (direction) to the product of tardirect and the retrograde vector
+// Here we lock steering (direction) to the product of tardirect and the retrograde vector - retrograde because steering points the 'head' of the vehicle and we are travelling 'feet' first
 lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 local timEngSpl is time:seconds + secEngSpl.
@@ -378,17 +378,17 @@ lock tarVSpeed to 0 - (sqrt(altAdj / 1000) * 100).
 
 until SHIP:verticalspeed > tarVSpeed { write_screen("Landing burn"). }
 
-// This should bring the vehicle towards the target altitude and have it hover at that alt
-set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
-set pidThrottle:setpoint to 0.
-lock tarVSpeed to (tarAlt - altAdj) / 5.
-lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
-
-until altAdj < 500 { write_screen("Balance throttle"). }
-
 // Shutdown gimbal engines
 for RG in colRGOdd { RG:Shutdown. }
 set engines to 5.
+
+// This should bring the vehicle towards the target altitude and have it hover at that alt
+set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
+set pidThrottle:setpoint to 0.
+lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
+
+until altAdj < 500 { write_screen("Balance throttle"). }
+lock tarVSpeed to (tarAlt - altAdj) / 5.
 
 // ******** TARGET PAD ********
 // until SHIP:verticalspeed > -25 { write_screen("Target pad"). }
@@ -405,7 +405,7 @@ lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):
 
 // lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 
-// ******** PAD HOVER ********
+// ******** PAD APPROACH ********
 until surfDist < 5 and SHIP:groundspeed < 5 and altAdj < 300 {
     write_screen("Pad approach").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
@@ -418,6 +418,7 @@ until surfDist < 5 and SHIP:groundspeed < 5 and altAdj < 300 {
 set landingPad to latlng(26.0384593, -97.1533248).
 set tarAlt to 130.
 
+// ******** PAD DESCENT ********
 until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
     write_screen("Pad descent").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
@@ -428,7 +429,6 @@ until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
 }
 
 // ******** DESCENT ********
-
 lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 set tarAlt to 100.
 
@@ -436,9 +436,16 @@ set tarVSpeed to -5.
 for RG in colRG26 { RG:Shutdown. }
 set engines to 3.
 
-until SHIP:altitude < 220 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
+until SHIP:altitude < 220 and abs(SHIP:verticalspeed) < 1 {
+    write_screen("Descent").
+    set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
+    set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
+    print "rcs Mag:      " + round(vecThrust:mag, 3) + "    " at(0, 20).
+    print "Fore:         " + round(SHIP:control:top, 3) + "    " at(0, 21).
+    print "Star:         " + round(SHIP:control:starboard, 3) + "    " at(0, 22).
+}
 
-// Tower Catch
+// ******** TOWER CATCH ********
 set throttle to 0.
 set SHIP:control:top to 0.
 set SHIP:control:starboard to 0.
