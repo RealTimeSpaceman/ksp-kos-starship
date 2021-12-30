@@ -114,20 +114,21 @@ global colRG48 is list(RG04, RG08).
 global colGF is list(FLCS, FRCS, RLCS, RRCS).
 
 // Landing pad - tower catch
-//global landingPad is latlng(26.0384593, -97.1533248). // Catch point - BC
 global landingPad is latlng(26.0385053, -97.1530816). // Aim point - BC
 
-// GoM altitude at base is 71m
+// Bch altitude at base is 71m
 global geoBChAim is latlng(26.0385053, -97.1530816). // Aim point - BC
 global geoBChCat is latlng(26.0384593, -97.1533248). // Catch point - BC
 global dirBChEnt is 262.
 global pctBChPrp is 18.
+global altBChBse is 71.
 
 // GoM altitude at base is 6m
 global geoGoMAim is latlng(25.322628, -93.820360). // Aim point - GoM
 global geoGoMCat is latlng(25.322994, -93.820184). // Catch point - GoM
 global dirGoMEnt is 82.
 global pctGoMPrp is 10.
+global altGoMBse is 6.
 
 global padEntDir is 270.
 global engines is 29.
@@ -230,7 +231,7 @@ if remProp > 18 {
     for RG in colRGOdd { RG:Shutdown. }
     set engines to 5.
 
-    local overshoot is 700.
+    local overshoot is 900.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
@@ -276,25 +277,22 @@ rcs on.
 set throttle to 1.
 
 // Calculate desired angle for falling trajectory
-// set arcShape to 10.
-// lock tarVAngle to arcTan(arcShape - ((surfDist / apoDist) * arcShape)) - 90.
 lock tarVAngle to (alt:radar - 1000) / 5000.
 lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
-lock dirDesire to angleAxis(tarVAngle, axsPadZen).
-lock vecDesire to dirDesire * landingPad:position.
+lock rotPadDes to angleAxis(tarVAngle, axsPadZen).
+lock vecDesire to rotPadDes * landingPad:position.
 lock axsProDes to vcrs(srfPrograde:vector, vecDesire).
 
 // Calculate attack vector to drag prograde vector towards the landing point vector - perhaps want to replace landingPad:position with desired vector to avoid direct line
 
 // angVector (scalar) is the angle between the prograde vector and the desired vector - want to minimise this
-// lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock angVector to vAng(srfPrograde:vector, vecDesire).
 
-// tarDirect (direction) is a rotation of degrees (1st parameter) around an axis (2nd parameter) here defined as the cross product of the two relevant vectors
-lock tarDirect to angleAxis(angVector * (0 - 4) - 1, axsProDes).
+// rotProDes (direction) is a rotation of degrees (1st parameter) around an axis (2nd parameter) here defined as the cross product of the two relevant vectors
+lock rotProDes to angleAxis(angVector * (0 - 4) - 1, axsProDes). // Look to use a pid controller here
 
-// Here we lock steering (direction) to the product of tardirect and the retrograde vector - retrograde because steering points the 'head' of the vehicle and we are travelling 'feet' first
-lock steering to lookdirup(tarDirect * srfRetrograde:vector, heading(padEntDir, 0):vector).
+// Here we lock steering (direction) to the product of rotProDes and the retrograde vector - retrograde because steering points the 'head' of the vehicle and we are travelling 'feet' first
+lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl {
@@ -318,15 +316,18 @@ until time:seconds > timEntBrn {
 
 // ******** RE-ENTRY ********
 set throttle to 0.
-set maxDflAer to 10.
-set maxDflThr to 5.
+set maxDflAer to 6.
+set maxDflThr to 7.
 
-set pidAeroLn to pidLoop(12, 0.01, 0.01, 0, maxDflAer + angVector).
+set pidAeroLn to pidLoop(6, 0.01, 0.01, 0 - maxDflAer, maxDflAer).
 set pidAeroLn:setpoint to 0.
 
-// We swap tarDirect to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
-// lock tarDirect to angleAxis(min(maxDeflect + angVector, angVector * 12), axsProDes).
-lock tarDirect to angleAxis(pidAeroLn:update(time:seconds, angVector), axsProDes).
+// We swap rotProDes to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
+lock axsProDes to vcrs(vecDesire, srfPrograde:vector).
+lock rotProDes to angleAxis(pidAeroLn:update(time:seconds, angVector), axsProDes).
+
+// Here we lock steering (direction) to the product of rotProDes and the negative of the desired vector - negative because steering points the 'head' of the vehicle and we are travelling 'feet' first
+lock steering to lookdirup(rotProDes * -vecDesire, heading(padEntDir, 0):vector).
 
 until SHIP:altitude < 16000 {
     write_screen("Re-entry").
@@ -342,7 +343,7 @@ global tarAlt is 150.
 global engAcl is 40.
 lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + tarAlt.
 
-until SHIP:altitude < altLndBrn {
+until SHIP:altitude < altLndBrn or SHIP:altitude < 4000 {
     write_screen("Final approach").
     print "Suicide burn at:" + round(altLndBrn, 0) + "    " at(0, 20).
     // Draw vectors
@@ -362,19 +363,15 @@ print "                        " at(0, 20).
 lock throttle to 1.
 set timEngSpl to time:seconds + secEngSpl.
 
-// Landing burn at retrograde for stability
-//lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
-
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
-// Swap angVector to landingPad vector and reverse tardirect now we are flying under thrust
+// Swap angVector to landingPad vector and reverse rotProDes now we are flying under thrust
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
-lock tarDirect to angleAxis(max(0 - maxDflThr, angVector * (0 - 8) - 1), axsProDes).
+lock axsProDes to vcrs(srfPrograde:vector, landingPad:position).
+lock rotProDes to angleAxis(max(0 - maxDflThr, angVector * (0 - 8) - 1), axsProDes). // Look to use a pid controller here
+lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 // ******** LANDING BURN ********
-// set shHeight to 20.
-// lock altAdj to alt:radar.
-
 lock tarVSpeed to 0 - (sqrt((alt:radar - tarAlt) / 1000) * 100).
 
 until SHIP:verticalspeed > tarVSpeed { write_screen("Landing burn"). }
@@ -388,12 +385,8 @@ set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
 lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
-until alt:radar < 300 { write_screen("Balance throttle"). }
+until alt:radar < 500 { write_screen("Balance throttle"). }
 lock tarVSpeed to (tarAlt - alt:radar) / 5.
-
-// ******** TARGET PAD ********
-// until SHIP:verticalspeed > -25 { write_screen("Target pad"). }
-
 
 // Time to resolve in seconds, maximum of 5
 set timeToRes to 0.01 + min(5, surfDist / 20).
@@ -403,8 +396,6 @@ lock vecThrust to ((vecLndPad / timeToRes) - vecSrfVel).
 lock thrHead to heading_of_vector(vecThrust).
 
 lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):vector).
-
-// lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 
 // ******** PAD APPROACH ********
 until surfDist < 5 and SHIP:groundspeed < 5 and alt:radar < 200 {
@@ -452,5 +443,9 @@ set SHIP:control:top to 0.
 set SHIP:control:starboard to 0.
 unlock steering.
 rcs off.
+// Disable grid fin control
+for GF in colGF{ GF:setfield("pitch", true). }
+for GF in colGF{ GF:setfield("yaw", true). }
+for GF in colGF{ GF:setfield("roll", true). }
 write_screen("Tower Catch").
 
