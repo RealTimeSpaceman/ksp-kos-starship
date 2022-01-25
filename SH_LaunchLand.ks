@@ -170,12 +170,19 @@ log logline to sh_bb_log.csv.
 
 write_console().
 
+// Camera settings
+global cam is addons:camera:flightcamera.
+// set cam:mode to "locked".
+// set cam:pitch to 0.
+// set cam:heading to -90.
+
 //---------------------------------------------------------------------------------------------------------------------
 // MAIN BODY
 //---------------------------------------------------------------------------------------------------------------------
 
 global secEngSpl is 3.
-set apoDist to 35000.
+// set cam:pitch to 0.
+// set cam:heading to -90.
 
 if remProp > 18 {
 
@@ -187,7 +194,11 @@ if remProp > 18 {
     stage.
 
     // ASCENT
-    until remProp < 18 { write_screen("Ascent"). }
+    until remProp < 18 {
+        write_screen("Ascent").
+        print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
+    }
+    print "                                  " at(0, 20).
 
     // STAGE - shutdown engines
     for RB in colRB { RB:Shutdown. }
@@ -195,8 +206,17 @@ if remProp > 18 {
     set engines to 0.
     stage.
 
+    set cam:target to FT.
+    set cam:pitch to 0.
+    set cam:heading to -90.
+
     local timeStage is time:seconds + 2.
-    until time:seconds > timeStage { write_screen("Stage"). }
+    until time:seconds > timeStage {
+        write_screen("Stage").
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
+    }
 
     // FLIP - Enable grid fin control
     for GF in colGF{ GF:setfield("pitch", false). }
@@ -206,10 +226,20 @@ if remProp > 18 {
     rcs on.
     set SHIP:control:pitch to 1. // Begin pitch over
     local timeRCS is time:seconds + 1.
-    until time:seconds > timeRCS { write_screen("Flip"). }
+    until time:seconds > timeRCS {
+        write_screen("Flip").
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
+    }
     set SHIP:control:pitch to 0. // Slow spin
     set timeRCS to time:seconds + 4.
-    until time:seconds > timeRCS { write_screen("Flip"). }
+    until time:seconds > timeRCS {
+        write_screen("Flip").
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
+    }
     local headBB is heading_of_vector(srfRetrograde:vector).
     lock steering to lookdirup(heading(headBB, 0):vector, heading(0, -90):vector). // Aim at horizon in direction of retrograde
     until vAng(SHIP:facing:vector, heading(headBB, 0):vector) < 30 { write_screen("Flip"). }
@@ -218,6 +248,13 @@ if remProp > 18 {
     for RG in colRG { RG:Activate. }
     set engines to 9.
     set throttle to 1.
+    local timEngSpl is time:seconds + secEngSpl.
+    until time:seconds > timEngSpl {
+        write_screen("Engine spool").
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
+    }
 
     until abs(padBear) < 70 { write_screen("Boostback"). }
 
@@ -231,7 +268,7 @@ if remProp > 18 {
     for RG in colRGOdd { RG:Shutdown. }
     set engines to 5.
 
-    local overshoot is 900.
+    local overshoot is 600.
     local timeFall is sqrt((2 * SHIP:apoapsis) / 9.8).
     lock tarSrfVel to (surfDist + overshoot) / (eta:apoapsis + timeFall).
 
@@ -266,6 +303,10 @@ for GF in colGF{ GF:setfield("roll", false). }
 // Variables for entry burn
 global altEntBrn is 33000.
 global secEntBrn is 8.
+
+// Set camera
+// set cam:pitch to 0.
+// set cam:heading to -90.
 
 // Aim at retrograde
 lock angAttack to vAng(srfRetrograde:vector, SHIP:facing:vector).
@@ -319,7 +360,7 @@ set throttle to 0.
 set maxDflAer to 6.
 set maxDflThr to 7.
 
-set pidAeroLn to pidLoop(6, 0.01, 0.01, 0 - maxDflAer, maxDflAer).
+set pidAeroLn to pidLoop(6, 0.01, 0.01, 0, maxDflAer).
 set pidAeroLn:setpoint to 0.
 
 // We swap rotProDes to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
@@ -411,6 +452,7 @@ set landingPad to latlng(26.0384593, -97.1533248).
 set tarAlt to 110.
 
 // ******** PAD DESCENT ********
+lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
     write_screen("Pad descent").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
@@ -421,14 +463,14 @@ until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
 }
 
 // ******** DESCENT ********
-lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 set tarAlt to 80.
 
 set tarVSpeed to -5.
 for RG in colRG26 { RG:Shutdown. }
 set engines to 3.
 
-until SHIP:altitude < 220 and abs(SHIP:verticalspeed) < 1 {
+// until SHIP:altitude < 220 and SHIP:verticalspeed < 0 {
+until SHIP:verticalspeed < 0 or SHIP:altitude < 209 {
     write_screen("Descent").
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
     set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
