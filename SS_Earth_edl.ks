@@ -205,14 +205,24 @@ set pidRol3 to pidLoop(0.1, 0.001, 0.3, -15, 15).
 set pidRol3:setpoint to 0.
 
 // PID loops phase 4
-set pidPit4 to pidLoop(0.35, 0.5, 2).
+set pidPit4 to pidLoop(0.5, 0.1, 3).
 set pidPit4:setpoint to 0.
 
-set pidYaw4 to pidLoop(0.1, 0.001, 0.3, -15, 15).
+set pidYaw4 to pidLoop(0.3, 0.001, 0.5, -15, 15).
 set pidYaw4:setpoint to 0.
 
 set pidRol4 to pidLoop(0.1, 0.001, 0.3, -15, 15).
 set pidRol4:setpoint to 0.
+
+// // PID loops phase 4
+// set pidPit4 to pidLoop(0.35, 0.5, 2).
+// set pidPit4:setpoint to 0.
+
+// set pidYaw4 to pidLoop(0.1, 0.001, 0.3, -15, 15).
+// set pidYaw4:setpoint to 0.
+
+// set pidRol4 to pidLoop(0.1, 0.001, 0.3, -15, 15).
+// set pidRol4:setpoint to 0.
 
 // PID loops phase 5
 set pidPit5 to pidLoop(1.5, 0.1, 3.5).
@@ -247,7 +257,7 @@ global minPitAng is 40.
 // Set phase thresholds
 global dpPhase2 is 0.005.
 global dpPhase3 is 0.015.
-global dpPhase4 is 0.08.
+global dpPhase4 is 0.06.
 
 // Set angle thresholds
 global angTrnMax is 80.
@@ -341,8 +351,8 @@ until SLRA:thrust > minThrust {
     trkRolAng:add(get_rollnose(srfretrograde)).
     if curPhase < 5 {
         trkYawAng:add(get_yawnose(SS:up)).
-    // } else if curPhase = 5 {
-    //     trkYawAng:add(landingPad:bearing).
+    } else if curPhase = 5 {
+        trkYawAng:add(landingPad:bearing).
     } else {
         //trkYawAng:add(get_yawnose(SS:north)).
         trkYawAng:add(heading_of_vector(SHIP:facing:vector)).
@@ -374,17 +384,17 @@ until SLRA:thrust > minThrust {
         if tarPitAng < minPitAng { set tarPitAng to minPitAng. }
         if tarPitAng > maxPitAng { set tarPitAng to maxPitAng. }
 
-        if padDist < 60 {
+        if padDist < 80 {
             local tstPitAng is 90 - (((srfDist - srpTargKM) / ((alt:radar / 1000) - srpFinAlt)) / srpConst).
             // if abs(tarPitAng - tstPitAng) < 1 {
-            if tstPitAng < tarPitAng {
+            //if tstPitAng > tarPitAng {
                 set curphase to 5.
                 //sas on.
                 set tarYawAng to 0.
                 set csfPitch to 0.
                 set csfYaw to 0.
                 set csfRoll to 0.
-            }
+            //}
         }
         
     } else {
@@ -483,14 +493,14 @@ until SLRA:thrust > minThrust {
         if zenRetAng < angTrnMin or (zenRetAng < angTrnMax and abs(tarYawAng) = maxYawAng) {
             set curphase to 5.
             //sas on.
-            //set tarYawAng to 0.
+            set tarYawAng to 0.
             set tarPitAng to maxPitAng.
             set csfPitch to 0.
             set csfYaw to 0.
             set csfRoll to 0.
-            lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
-            lock rotPadDes to angleAxis(180 - tarPitAng - zenRetAng, axsPadZen).
-            lock steering to lookdirup(-rotPadDes * up:vector, up:vector).
+            // lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
+            // lock rotPadDes to angleAxis(180 - tarPitAng - zenRetAng, axsPadZen).
+            // lock steering to lookdirup(-rotPadDes * up:vector, up:vector).
         }
     }
 
@@ -507,19 +517,19 @@ until SLRA:thrust > minThrust {
         if zenRetAng < angTrnMin or (zenRetAng < angTrnMax and abs(tarYawAng) = maxYawAng) {
             set curphase to 5.
             //sas on.
-            //set tarYawAng to 0.
+            set tarYawAng to 0.
             set csfPitch to 0.
             set csfYaw to 0.
             set csfRoll to 0.
-            lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
-            lock rotPadDes to angleAxis(180 - tarPitAng - zenRetAng, axsPadZen).
-            lock steering to lookdirup(-rotPadDes * up:vector, up:vector).
+            // lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
+            // lock rotPadDes to angleAxis(180 - tarPitAng - zenRetAng, axsPadZen).
+            // lock steering to lookdirup(-rotPadDes * up:vector, up:vector).
         }
     }
 
     if curPhase = 5 { // Transition from horizontal to vertical - flaps control
     
-        set tarYawAng to landingPad:heading.
+        //set tarYawAng to landingPad:heading.
         
         set csfPitch to pidPit5:update(time:seconds, trkPitAng[4] - tarPitAng).
         set csfYaw to pidYaw5:update(time:seconds, trkYawAng[4] - tarYawAng).
@@ -530,10 +540,10 @@ until SLRA:thrust > minThrust {
             set csfPitch to 0.
             set csfYaw to 0.
             set csfRoll to 0.
-            //set tarYawAng to get_yawnose(SS:north).
-            // lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
-            // lock rotPadDes to angleAxis(180 - tarPitAng - zenRetAng, axsPadZen).
-            // lock steering to lookdirup(-rotPadDes * up:vector, up:vector).
+            set tarYawAng to get_yawnose(SS:north).
+            lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
+            lock rotPadDes to angleAxis(180 - tarPitAng - zenRetAng, axsPadZen).
+            lock steering to lookdirup(-rotPadDes * up:vector, up:vector).
         }
     }
 
