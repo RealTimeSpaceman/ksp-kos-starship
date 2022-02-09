@@ -9,6 +9,11 @@ if SHIP:partstagged("CS_R"):length = 1 {
     set CSLB to CSR:GetModuleByIndex(4).
 }
 
+if SHIP:partstagged("OLIT_CS"):length = 1 {
+    set OCS to SHIP:partstagged("OLIT_CS")[0].
+    
+}
+
 // list targets in targs.
 // for targ in targs {
 //     if targ:distance < 2500 and targ:altitude > 200 {

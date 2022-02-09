@@ -226,6 +226,7 @@ lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):
 
 until surfDist < 25 {
     write_screen("Target CP 1").
+    for RB in colRB { RB:Shutdown. }
     // Assume the ship is facing heading padEntDir as previously commanded, calculate the relative RCS strengths and directions for top (fore) and starboard
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
     set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
@@ -276,8 +277,5 @@ rcs off.
 write_screen("Tower Catch").
 
 
-// Geoposition on final catch 1: 26.03848131. -97.15330866
-// Geoposition on final catch 2: 26.03848398. -97.15330556
-// Geoposition on final catch 3: 26.03848418. -97.15331041
-// Geoposition on final catch A: 26.03845531. -97.15329175
+// Geoposition on final catch 1: 26.038489, -97.153189
 // Looks like 5-6 decimal places is the most number of useful places
