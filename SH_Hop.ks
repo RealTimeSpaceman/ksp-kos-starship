@@ -100,22 +100,20 @@ runPath("MD_Ini_SH_Launch").
 // INITIALISE
 //---------------------------------------------------------------------------------------------------------------------
 
-// Engine groups
-global colRB is list(RB01, RB02, RB03, RB04, RB05, RB06, RB07, RB08, RB09, RB10, RB11, RB12, RB13, RB14, RB15, RB16, RB17, RB18, RB19, RB20).
-global colRG is list(RG01, RG02, RG03, RG04, RG05, RG06, RG07, RG08, RG09).
-global colRGOdd is list(RG03, RG05, RG07, RG09).
-global colRG26 is list(RG02, RG06).
-global colRG48 is list(RG04, RG08).
-
 // Grid fin group
 global colGF is list(FLCS, FRCS, RLCS, RRCS).
 
 // Landing pad
-// global landingPd1 is latlng(26.0358980, -97.1497360).
-// global landingPad is latlng(26.0384593, -97.1533248).
 global landingPad is latlng(26.0389495, -97.1522145).
-global padEntDir is 262.
+global padEntDir is 256.
+
+// Enable all engine groups
 global engines is 29.
+ECCT:DoAction("activate engine", true).
+wait 0.1.
+ECMI:DoAction("activate engine", true).
+wait 0.1.
+ECAE:DoAction("activate engine", true).
 
 // Track remaining propellant
 lock remProp to (FT:Resources[0]:amount / 2268046) * 100.
@@ -130,9 +128,6 @@ lock surfDist to (vecLndPad - vxcl(up:vector, SHIP:geoposition:position)):mag.
 lock angVector to 0.
 lock tarVAngle to 0.
 lock tarVSpeed to 0.
-// lock lrDelta to sin(padBear) * surfDist.
-// lock padRelLat to (SHIP:geoPosition:lat - landingPad:lat) * 1000.
-// lock padRelLng to (SHIP:geoPosition:lng - landingPad:lng) * 1000.
 
 // Write first line of log
 deletePath(SH_BB_log.csv).
@@ -165,19 +160,20 @@ for GF in colGF{ GF:setfield("yaw", false). }
 for GF in colGF{ GF:setfield("roll", false). }
 
 // Ascent
-global tarAlt is 170.
+global tarAlt is 190.
 set shHeight to 20.
 lock altAdj to alt:radar - shHeight.
-// set tarVSpd1 to 20.
-// set tarVSpd2 to -20.
 
-//set pidThrottle TO pidLoop(0.01, 0.02, 0.001, 0.0001, 1).
 set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0001, 1).
 set pidThrottle:setpoint to 0.
 
 // Shutdown boost engines
-for RB in colRB { RB:Shutdown. }
 set engines to 9.
+ECAE:DoAction("shutdown engine", true).
+
+// Release quick disconnect fuel connections
+if QDAA:hasevent("open") { QDAA:doevent("open"). }
+if QDBA:hasevent("open") { QDBA:doevent("open"). }
 
 lock steering to up.
 lock throttle to 1.
@@ -189,7 +185,7 @@ until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
 stage.
 
-until altAdj > tarAlt / 3 { write_screen("Ascent"). }
+until SHIP:altitude > 185 { write_screen("Ascent"). }
 
 rcs on.
 
@@ -200,17 +196,11 @@ lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock tarVSpeed to (tarAlt - altAdj) / 5.
 lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
-// until altAdj > tarAlt { write_screen("Balance throttle"). }
-
-// Shutdown gimbal engines
-for RG in colRGOdd { RG:Shutdown. }
-set engines to 5.
-
-// set pidFore to pidLoop(0.01, 0.001, 0.001, -1, 1).
-// set pidFore:setpoint to 0.
-// set pidStar to pidLoop(0.01, 0.001, 0.001, -1, 1).
-// set pidStar:setpoint to 0.
-
+// Shutdown all but 3 gimbal engines
+set engines to 3.
+ECAE:DoAction("shutdown engine", true).
+wait 0.1.
+ECMI:DoAction("shutdown engine", true).
 
 // Time to resolve in seconds, maximum of 5
 set timeToRes to 0.01 + min(5, surfDist / 20).
@@ -220,13 +210,10 @@ lock vecThrust to ((vecLndPad / timeToRes) - vecSrfVel).
 lock thrHead to heading_of_vector(vecThrust).
 
 // ******** Hover ********
-//lock steering to lookdirup(up:vector, heading(padEntDir, 0):vector).
-//lock steering to lookdirup(vecLndPad + (max(150, padDist * 5) * up:vector) - (9 * vecSrfVel), heading(padEntDir, 0):vector).
 lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):vector).
 
 until surfDist < 25 {
     write_screen("Target CP 1").
-    for RB in colRB { RB:Shutdown. }
     // Assume the ship is facing heading padEntDir as previously commanded, calculate the relative RCS strengths and directions for top (fore) and starboard
     set SHIP:control:top to min(1, vecThrust:mag) * cos(thrHead - padEntDir).
     set SHIP:control:starboard to 0 - min(1, vecThrust:mag) * sin(thrHead - padEntDir).
@@ -247,7 +234,7 @@ until surfDist < 5 and SHIP:groundspeed < 5 and altAdj < 300 {
     print "Star:         " + round(SHIP:control:starboard, 3) + "    " at(0, 21).
 }
 
-set landingPad to latlng(26.0384593, -97.1533248).
+set landingPad to latlng(26.038475, -97.153117).
 set tarAlt to 130.
 
 until surfDist < 5 and SHIP:groundspeed < 3 and SHIP:altitude < 300 {
@@ -266,16 +253,31 @@ set tarAlt to 100.
 
 set tarVSpeed to -5.
 
-until SHIP:altitude < 220 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
+until SHIP:altitude < 240 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
 
 // Tower Catch
 set throttle to 0.
 set SHIP:control:top to 0.
 set SHIP:control:starboard to 0.
-unlock steering.
 rcs off.
-write_screen("Tower Catch").
 
+// Disable grid fin control
+for GF in colGF{ GF:setfield("pitch", true). }
+for GF in colGF{ GF:setfield("yaw", true). }
+for GF in colGF{ GF:setfield("roll", true). }
+
+global secStable is 10.
+local timStable is time:seconds + secStable.
+until time:seconds > timStable { write_screen("stabilising"). }
+
+unlock steering.
+
+sas on.
 
 // Geoposition on final catch 1: 26.038489, -97.153189
 // Looks like 5-6 decimal places is the most number of useful places
+
+// Geoposition after moving tower closer for the QD connection 26.038478, -97.153140
+// Geoposition after moving tower closer for the QD connection 26.038475, -97.153117
+
+// Read up on Boot files to automatically launch the tower script

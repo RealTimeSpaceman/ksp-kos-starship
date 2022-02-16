@@ -27,38 +27,15 @@ if SH:partstagged("OLP"):length = 1 {
     set OPLC to OLP:GetModule("LaunchClamp").
 }
 
-// Bind to Raptor Boost engines
-if SH:partstagged("RB01"):length = 1 { set RB01 to SH:partstagged("RB01")[0]. }
-if SH:partstagged("RB02"):length = 1 { set RB02 to SH:partstagged("RB02")[0]. }
-if SH:partstagged("RB03"):length = 1 { set RB03 to SH:partstagged("RB03")[0]. }
-if SH:partstagged("RB04"):length = 1 { set RB04 to SH:partstagged("RB04")[0]. }
-if SH:partstagged("RB05"):length = 1 { set RB05 to SH:partstagged("RB05")[0]. }
-if SH:partstagged("RB06"):length = 1 { set RB06 to SH:partstagged("RB06")[0]. }
-if SH:partstagged("RB07"):length = 1 { set RB07 to SH:partstagged("RB07")[0]. }
-if SH:partstagged("RB08"):length = 1 { set RB08 to SH:partstagged("RB08")[0]. }
-if SH:partstagged("RB09"):length = 1 { set RB09 to SH:partstagged("RB09")[0]. }
-if SH:partstagged("RB10"):length = 1 { set RB10 to SH:partstagged("RB10")[0]. }
-if SH:partstagged("RB11"):length = 1 { set RB11 to SH:partstagged("RB11")[0]. }
-if SH:partstagged("RB12"):length = 1 { set RB12 to SH:partstagged("RB12")[0]. }
-if SH:partstagged("RB13"):length = 1 { set RB13 to SH:partstagged("RB13")[0]. }
-if SH:partstagged("RB14"):length = 1 { set RB14 to SH:partstagged("RB14")[0]. }
-if SH:partstagged("RB15"):length = 1 { set RB15 to SH:partstagged("RB15")[0]. }
-if SH:partstagged("RB16"):length = 1 { set RB16 to SH:partstagged("RB16")[0]. }
-if SH:partstagged("RB17"):length = 1 { set RB17 to SH:partstagged("RB17")[0]. }
-if SH:partstagged("RB18"):length = 1 { set RB18 to SH:partstagged("RB18")[0]. }
-if SH:partstagged("RB19"):length = 1 { set RB19 to SH:partstagged("RB19")[0]. }
-if SH:partstagged("RB20"):length = 1 { set RB20 to SH:partstagged("RB20")[0]. }
-
-// Bind to Raptor Gimbal engines
-if SH:partstagged("RG01"):length = 1 { set RG01 to SH:partstagged("RG01")[0]. }
-if SH:partstagged("RG02"):length = 1 { set RG02 to SH:partstagged("RG02")[0]. }
-if SH:partstagged("RG03"):length = 1 { set RG03 to SH:partstagged("RG03")[0]. }
-if SH:partstagged("RG04"):length = 1 { set RG04 to SH:partstagged("RG04")[0]. }
-if SH:partstagged("RG05"):length = 1 { set RG05 to SH:partstagged("RG05")[0]. }
-if SH:partstagged("RG06"):length = 1 { set RG06 to SH:partstagged("RG06")[0]. }
-if SH:partstagged("RG07"):length = 1 { set RG07 to SH:partstagged("RG07")[0]. }
-if SH:partstagged("RG08"):length = 1 { set RG08 to SH:partstagged("RG08")[0]. }
-if SH:partstagged("RG09"):length = 1 { set RG09 to SH:partstagged("RG09")[0]. }
+// Bind to quick disconnect fuel connections
+if SH:partstagged("QDA"):length = 1 {
+    set QDA to SH:partstagged("QDA")[0].
+    set QDAA to QDA:GetModule("ModuleAnimateGeneric").
+}
+if SH:partstagged("QDB"):length = 1 {
+    set QDB to SH:partstagged("QDB")[0].
+    set QDBA to QDB:GetModule("ModuleAnimateGeneric").
+}
 
 // Bind to grid fins
 if SH:partstagged("Grid_FL"):length = 1 {
