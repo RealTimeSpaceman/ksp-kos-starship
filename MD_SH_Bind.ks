@@ -7,6 +7,7 @@ if SH:partstagged("SH_CM"):length = 1 {
     set CM to SH:partstagged("SH_CM")[0].
     // Bind to Module Command
     set CMCMD to CM:getmodule("ModuleCommand").
+    set CMDEC to CM:getmodule("ModuleDecouple").
 }
 if SH:partstagged("SH_FT"):length = 1 {
     set FT to SH:partstagged("SH_FT")[0].

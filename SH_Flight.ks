@@ -172,6 +172,10 @@ write_console().
 // Camera settings
 global cam is addons:camera:flightcamera.
 
+// Steering manager settings
+set steeringManager:pitchts to 13.
+set steeringManager:yawts to 13.
+
 //---------------------------------------------------------------------------------------------------------------------
 // MAIN BODY
 //---------------------------------------------------------------------------------------------------------------------
@@ -204,20 +208,21 @@ if remProp > 18 {
     ECAE:DoAction("shutdown engine", true).
     wait 0.1.
     stage.
+    //CMDEC:doevent("decouple").
     wait 0.1.
     ECAE:DoAction("shutdown engine", true).
     set throttle to 0.
 
-    // set cam:target to FT.
-    // set cam:pitch to 0.
-    // set cam:heading to -90.
+    set cam:target to FT.
+    set cam:pitch to 0.
+    set cam:heading to -90.
 
     local timeStage is time:seconds + 2.
     until time:seconds > timeStage {
         write_screen("Stage").
-        // set cam:target to FT.
-        // set cam:pitch to 0.
-        // set cam:heading to -90.
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
     }
 
     // BOOSTBACK - Activate gimbal engines
@@ -235,9 +240,9 @@ if remProp > 18 {
     until time:seconds > timeRCS {
         write_screen("Flip").
         print "Prop. stability:" + ECMI:GetField("propellant") + "    " at(0, 20).
-        // set cam:target to FT.
-        // set cam:pitch to 0.
-        // set cam:heading to -90.
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
     }
     set SHIP:control:pitch to 0. // Slow spin
     set timeRCS to time:seconds + 4.
@@ -247,9 +252,9 @@ if remProp > 18 {
         if ECMI:GetField("propellant") = "Very Stable (100.00 %)" {
             set throttle to 1.
         }
-        // set cam:target to FT.
-        // set cam:pitch to 0.
-        // set cam:heading to -90.
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
     }
     local headBB is heading_of_vector(srfRetrograde:vector).
     lock steering to lookdirup(heading(headBB, 0):vector, heading(0, -90):vector). // Aim at horizon in direction of retrograde
@@ -306,8 +311,8 @@ for GF in colGF{ GF:setfield("yaw", false). }
 for GF in colGF{ GF:setfield("roll", false). }
 
 // Variables for entry burn
-global altEntBrn is 50000.
-global secEntBrn is 20.
+global altEntBrn is 44000.
+global secEntBrn is 18.
 
 // Set camera
 // set cam:pitch to 0.
@@ -340,21 +345,21 @@ lock rotProDes to angleAxis(angVector * (0 - 4) - 1, axsProDes). // Look to use 
 // Here we lock steering (direction) to the product of rotProDes and the retrograde vector - retrograde because steering points the 'head' of the vehicle and we are travelling 'feet' first
 lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
-global vdPad is vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, false, 0.2, true, true).
-global vdDes is vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 0.1, false, 0.2, true, true).
-global vdPro is vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 0.1, false, 0.2, true, true).
-global vdAxs is vecDraw(v(0,0,0), axsProDes, rgb(1, 0.5, 0), "Axis", 0.1, false, 0.2, true, true).
+// global vdPad is vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, false, 0.2, true, true).
+// global vdDes is vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 0.1, false, 0.2, true, true).
+// global vdPro is vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 0.1, false, 0.2, true, true).
+// global vdAxs is vecDraw(v(0,0,0), axsProDes, rgb(1, 0.5, 0), "Axis", 0.1, false, 0.2, true, true).
 
 local timEngSpl is time:seconds + secEngSpl.
 until time:seconds > timEngSpl {
     write_screen("Engine spool").
-    draw_vectors().
+    // draw_vectors().
 }
 
 local timEntBrn is time:seconds + secEntBrn.
 until time:seconds > timEntBrn {
     write_screen("Entry burn").
-    draw_vectors().
+    // draw_vectors().
 }
 
 // ******** RE-ENTRY ********
@@ -374,25 +379,26 @@ lock steering to lookdirup(rotProDes * -vecDesire, heading(padEntDir, 0):vector)
 
 until SHIP:altitude < 16000 {
     write_screen("Re-entry").
-    draw_vectors().
+    // draw_vectors().
 }
 
 // ******** FINAL APPROACH ********
 global tarAlt is 150.
-global engAcl is 40.
-lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + tarAlt.
+// global engAcl is 45.
+// lock altLndBrn to (0 - SHIP:verticalspeed * secEngSpl) + ((SHIP:verticalspeed * SHIP:verticalspeed) / (2 * engAcl)) + tarAlt.
 
-until SHIP:altitude < altLndBrn or SHIP:altitude < 4000 {
+// until SHIP:altitude < altLndBrn or SHIP:altitude < 4000 {
+until SHIP:altitude < 4000 {
     write_screen("Final approach").
-    print "Suicide burn at:" + round(altLndBrn, 0) + "    " at(0, 20).
-    draw_vectors().
+    // print "Suicide burn at:" + round(altLndBrn, 0) + "    " at(0, 20).
+    // draw_vectors().
 }
-print "                        " at(0, 20).
+// print "                        " at(0, 20).
 
-set vdPad:show to false.
-set vdDes:show to false.
-set vdPro:show to false.
-set vdAxs:show to false.
+// set vdPad:show to false.
+// set vdDes:show to false.
+// set vdPro:show to false.
+// set vdAxs:show to false.
 
 // ******** ENGINE SPOOL ********
 lock throttle to 1.
@@ -463,7 +469,7 @@ set SHIP:control:starboard to 0.
 lock steering to lookDirUp(up:vector, heading(padEntDir, 0):vector).
 set tarAlt to 100.
 
-set tarVSpeed to -3.
+set tarVSpeed to -6.
 
 until SHIP:altitude < 240 and abs(SHIP:verticalspeed) < 1 { write_screen("Descent"). }
 
