@@ -9,7 +9,7 @@ function draw_vectors {
     set vdDes:show to false.
     set vdPro:show to false.
     set vdAxs:show to false.
-    set vdPad to vecDraw(v(0,0,0), landingPad:position, rgb(0, 0, 1), "Pad", 0.1, true, 1, true, true).
+    set vdPad to vecDraw(v(0,0,0), towerBase:position, rgb(0, 0, 1), "Pad", 0.1, true, 1, true, true).
     set vdDes to vecDraw(v(0,0,0), vecDesire, rgb(0, 1, 0), "Desired", 50, true, 0.003, true, true).
     set vdPro to vecDraw(v(0,0,0), srfPrograde:vector, rgb(1, 0, 0), "Motion", 50, true, 0.001, true, true).
     set vdAxs to vecDraw(v(0,0,0), axsProDes, rgb(1, 0.5, 0), "Axis", 0.05, true, 0.2, true, true).
@@ -70,6 +70,7 @@ function write_screen {
     set logline to logline + phase + ",".
     set logline to logline + round(SHIP:altitude, 0) + ",".
     set logline to logline + round(SHIP:q, 4) + ",".
+    set logline to logline + round(SHIP:groundspeed, 0) + ",".
     set logline to logline + round(SHIP:verticalspeed, 0) + ",".
     set logline to logline + round(SHIP:airspeed, 0) + ",".
     set logline to logline + round(surfDist, 0) + ",".
@@ -83,6 +84,9 @@ function write_screen {
     set logline to logline + round(engines, 0) + ",".
     set logline to logline + round(remProp, 2) + ",".
     log logline to sh_bb_log.csv.
+
+    // set cam:heading to 85.
+    // set cam:pitch to max(100 - (SHIP:altitude / 500), 160 - arcTan(SHIP:altitude/surfDist)).
 
 }
 
@@ -119,7 +123,9 @@ runPath("MD_Ini_SH_Launch").
 global colGF is list(FLCS, FRCS, RLCS, RRCS).
 
 // Initial landing pad - Final catch position is latlng(26.038475, -97.153117).
-global landingPad is latlng(26.038475, -97.153117).
+// global landingPad is latlng(26.038475, -97.153117).
+global towerBase is latlng(26.038475, -97.153117).
+global offSticks is latlng(26.038475, -97.153117).
 global padEntDir is 256.
 
 // Enable all engine groups
@@ -135,9 +141,9 @@ lock remProp to (FT:Resources[0]:amount / 2268046) * 100.
 
 // Track distance and heading to pad
 lock SHHeading to heading_of_vector(SHIP:srfprograde:vector).
-lock padDist to landingPad:distance.
-lock padBear to relative_bearing(SHHeading, landingPad:heading).
-lock vecLndPad to vxcl(up:vector, landingPad:position).
+lock padDist to towerBase:distance.
+lock padBear to relative_bearing(SHHeading, towerBase:heading).
+lock vecLndPad to vxcl(up:vector, towerBase:position).
 lock vecSrfVel to vxcl(up:vector, SHIP:velocity:surface).
 lock surfDist to (vecLndPad - vxcl(up:vector, SHIP:geoposition:position)):mag.
 lock angVector to 0.
@@ -170,6 +176,11 @@ write_console().
 
 // Camera settings
 global cam is addons:camera:flightcamera.
+set cam:mode to "free".
+WAIT 0.001.
+set cam:heading to 85.
+WAIT 0.001.
+set cam:distance to 180.
 
 //---------------------------------------------------------------------------------------------------------------------
 // MAIN BODY
@@ -195,7 +206,7 @@ if remProp > minRemProp {
     // ASCENT
     until remProp < minRemProp {
         write_screen("Ascent").
-        print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
+        print "Pad head:     " + round(towerBase:heading, 3) + "    " at(0, 20).
     }
     print "                                  " at(0, 20).
 
@@ -209,16 +220,9 @@ if remProp > minRemProp {
     ECAE:DoAction("shutdown engine", true).
     set throttle to 0.
 
-    set cam:target to FT.
-    set cam:pitch to 0.
-    set cam:heading to -90.
-
     local timeStage is time:seconds + 2.
     until time:seconds > timeStage {
         write_screen("Stage").
-        set cam:target to FT.
-        set cam:pitch to 0.
-        set cam:heading to -90.
     }
 
 }
@@ -264,7 +268,7 @@ if (remProp > (minRemProp - 1)) {
     set pidTarPad TO pidLoop(10, 0.5, 2, -30, 30).
     set pidTarPad:setpoint to 0.
     // Aim at horizon, reduce bearing to pad to zero
-    lock steering to lookdirup(heading(landingPad:heading - pidTarPad:update(time:seconds, padBear), 0):vector, heading(0, -90):vector).
+    lock steering to lookdirup(heading(towerBase:heading - pidTarPad:update(time:seconds, padBear), 0):vector, heading(0, -90):vector).
     
     // Shutdown all but 3 gimbal engines
     set engines to 3.
@@ -295,7 +299,7 @@ if (remProp > (minRemProp - 1)) {
     
     // Post BoostBack
     set throttle to 0.
-    lock steering to lookdirup(heading(landingPad:heading, 0):vector, heading(0, -90):vector).
+    lock steering to lookdirup(heading(towerBase:heading, 0):vector, heading(0, -90):vector).
     set timKilRot to time:seconds + 2.
     until time:seconds > timKilRot { write_screen("Kill rotation"). }
 
@@ -316,13 +320,11 @@ for GF in colGF{ GF:setfield("pitch", false). }
 for GF in colGF{ GF:setfield("yaw", false). }
 for GF in colGF{ GF:setfield("roll", false). }
 
-// Aim at retrograde
 global altPntRet is 80000.
 lock angAttack to vAng(srfRetrograde:vector, SHIP:facing:vector).
 lock steering to lookdirup(srfRetrograde:vector, heading(0, 90):vector).
 until SHIP:altitude < altPntRet { write_screen("Coast"). }
 
-// ******** ENTRY BURN ********
 rcs on.
 lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
 // set throttle to 1.
@@ -331,18 +333,15 @@ until SHIP:q > 0.05 { write_screen("Point Retro"). }
 
 // Calculate desired angle for falling trajectory
 lock tarVAngle to (SHIP:altitude - 1000) / 25000.
-lock axsPadZen to vcrs(landingPad:position, SHIP:up:vector).
+lock axsPadZen to vcrs(towerBase:position, SHIP:up:vector).
 lock rotPadDes to angleAxis(tarVAngle, axsPadZen).
-lock vecDesire to rotPadDes * landingPad:position.
+lock vecDesire to rotPadDes * towerBase:position.
 lock axsProDes to vcrs(srfPrograde:vector, vecDesire).
 
 // angVector (scalar) is the angle between the prograde vector and the desired vector - want to minimise this
 lock angVector to vAng(srfPrograde:vector, vecDesire).
 
 // ******** RE-ENTRY ********
-// set throttle to 0.
-set maxDflThr to 5.
-set maxDflBal to 15.
 
 // We swap rotProDes to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
 lock axsProDes to vcrs(vecDesire, srfPrograde:vector).
@@ -366,27 +365,41 @@ global tarAlt is 235.
 lock throttle to 1.
 set timEngSpl to time:seconds + secEngSpl.
 
-lock steering to lookdirup(-landingPad:position, heading(padEntDir, 0):vector).
+lock steering to lookdirup(-towerBase:position, heading(padEntDir, 0):vector).
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
-// Swap angVector to landingPad vector and reverse rotProDes now we are flying under thrust
-lock angVector to vAng(srfPrograde:vector, landingPad:position).
-lock axsProDes to vcrs(srfPrograde:vector, landingPad:position).
-lock rotProDes to angleAxis(max(maxDflThr, angVector * 0.25), axsProDes).
+// Stay on target...
+set maxDflAer to 4.
+set mltDlfAer to 0.25.
+set maxDflThr to 6.
+set mltDlfThr to 2.
+set maxDflBal to 15.
+
+local twrHeight is 235.
+lock latDelta to SHIP:geoposition:lat - towerBase:lat.
+lock lngDelta to SHIP:geoposition:lng - towerBase:lng.
+lock altRatio to twrHeight / SHIP:altitude.
+lock offSticks to latlng(towerBase:lat - (latDelta * altRatio), towerBase:lng - (lngDelta * altRatio)).
+
+// Swap angVector to towerBase vector and reverse rotProDes now we are flying under thrust
+lock angVector to vAng(srfPrograde:vector, offSticks:position).
+lock axsProDes to vcrs(srfPrograde:vector, offSticks:position).
+lock rotProDes to angleAxis(max(maxDflAer, angVector * mltDlfAer), axsProDes).
 lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
+
 
 // ******** LANDING BURN ********
 lock tarVSpeed to 0 - (sqrt((SHIP:altitude - tarAlt) / 1000) * 130). // Alter the final number maybe based on SHIP:mass?
 
 // Switch aero direction once dynamic pressure drops below a given threshold
 until SHIP:q < 0.8 {
-    write_screen("Landing burn").
+    write_screen("Landing burn (aero)").
     print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
 }
-lock rotProDes to angleAxis(max(0 - maxDflThr, angVector * (0 - 2)), axsProDes).
+lock rotProDes to angleAxis(max(0 - maxDflThr, angVector * (0 - mltDlfThr)), axsProDes).
 
 until SHIP:verticalspeed > tarVSpeed {
-    write_screen("Landing burn").
+    write_screen("Landing burn (thrust)").
     print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
 }
 print "                                  " at(0, 20).
@@ -405,10 +418,7 @@ set pidThrottle TO pidLoop(0.7, 0.2, 0, 0.0000001, 1).
 set pidThrottle:setpoint to 0.
 lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed - tarVSpeed)).
 
-// Set final catch position
-set landingPad to latlng(26.038475, -97.153117).
-
-until SHIP:altitude < 300 {
+until SHIP:altitude < 500 {
     write_screen("Balance throttle").
     print "mltDflBal:    " + round(mltDflBal, 3) + "    " at(0, 20).
 }
@@ -431,7 +441,7 @@ for targ in targs {
 set OCS to tower:partstagged("OLIT_CS")[0].
 set OCSMD to OCS:GetModule("ModuleAnimateGeneric").
 
-lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):vector).
+lock steering to lookdirup(vecThrust + (120 * up:vector), heading(padEntDir, 0):vector).
 lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed + 5)).
 set tarAlt to 200.
 lock tarVSpeed to (tarAlt - SHIP:altitude) / 5.
@@ -444,8 +454,8 @@ until OCSMD:hasevent("open arms") {
     print "rcs Mag:      " + round(vecThrust:mag, 3) + "    " at(0, 20).
     print "Fore:         " + round(SHIP:control:top, 3) + "    " at(0, 21).
     print "Star:         " + round(SHIP:control:starboard, 3) + "    " at(0, 22).
-    print "Geo Lat delta:" + round(SHIP:geoposition:lat - landingPad:lat, 6) + "    " at(0, 23).
-    print "Geo Lng delta:" + round(SHIP:geoposition:lng - landingPad:lng, 6) + "    " at(0, 24).
+    print "Geo Lat delta:" + round(latDelta, 6) + "    " at(0, 23).
+    print "Geo Lng delta:" + round(lngDelta, 6) + "    " at(0, 24).
 }
 
 set timTCatch to time:seconds + secTCatch.
@@ -457,8 +467,8 @@ until time:seconds > timTCatch {
     print "rcs Mag:      " + round(vecThrust:mag, 3) + "    " at(0, 20).
     print "Fore:         " + round(SHIP:control:top, 3) + "    " at(0, 21).
     print "Star:         " + round(SHIP:control:starboard, 3) + "    " at(0, 22).
-    print "Geo Lat delta:" + round(SHIP:geoposition:lat - landingPad:lat, 6) + "    " at(0, 23).
-    print "Geo Lng delta:" + round(SHIP:geoposition:lng - landingPad:lng, 6) + "    " at(0, 24).
+    print "Geo Lat delta:" + round(latDelta, 6) + "    " at(0, 23).
+    print "Geo Lng delta:" + round(lngDelta, 6) + "    " at(0, 24).
 }
 
 // Tower Catch

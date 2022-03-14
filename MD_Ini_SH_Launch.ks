@@ -34,51 +34,39 @@ FRCS:setfield("deploy", true).
 RLCS:setfield("deploy", true).
 RRCS:setfield("deploy", true).
 
-
-// 30 km for in-flight
+local dstBase is 10000.
 // Note the order is important.  set UNLOAD BEFORE LOAD,
 // and PACK before UNPACK.  Otherwise the protections in
 // place to prevent invalid values will deny your attempt
 // to change some of the values:
-SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:UNLOAD TO 30000.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:LOAD TO 29500.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
-SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:PACK TO 29999.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:UNPACK TO 29000.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
+// In-flight
+SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:UNLOAD TO dstBase.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:LOAD TO dstBase - 500.
+WAIT 0.001.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:PACK TO dstBase - 1.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:FLYING:UNPACK TO dstBase - 1000.
+WAIT 0.001.
 
-// 30 km for parked on the ground:
-// Note the order is important.  set UNLOAD BEFORE LOAD,
-// and PACK before UNPACK.  Otherwise the protections in
-// place to prevent invalid values will deny your attempt
-// to change some of the values:
-SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNLOAD TO 30000.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:LOAD TO 29500.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
-SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:PACK TO 39999.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNPACK TO 29000.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
+// Parked on the ground:
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNLOAD TO dstBase.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:LOAD TO dstBase - 500.
+WAIT 0.001.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:PACK TO dstBase - 1.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:LANDED:UNPACK TO dstBase - 1000.
+WAIT 0.001.
 
-// 30 km for parked in the sea:
-// Note the order is important.  set UNLOAD BEFORE LOAD,
-// and PACK before UNPACK.  Otherwise the protections in
-// place to prevent invalid values will deny your attempt
-// to change some of the values:
-SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:UNLOAD TO 30000.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:LOAD TO 29500.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
-SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:PACK TO 29999.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:UNPACK TO 29000.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
+// Parked in the sea:
+SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:UNLOAD TO dstBase.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:LOAD TO dstBase - 500.
+WAIT 0.001.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:PACK TO dstBase - 1.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:SPLASHED:UNPACK TO dstBase - 1000.
+WAIT 0.001.
 
-// 30 km for being on the launchpad or runway
-// Note the order is important.  set UNLOAD BEFORE LOAD,
-// and PACK before UNPACK.  Otherwise the protections in
-// place to prevent invalid values will deny your attempt
-// to change some of the values:
-SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:UNLOAD TO 30000.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:LOAD TO 29500.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
-SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:PACK TO 29999.
-SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:UNPACK TO 29000.
-WAIT 0.001. // See paragraph above: "wait between load and pack changes"
+// On the launchpad or runway
+SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:UNLOAD TO dstBase.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:LOAD TO dstBase - 500.
+WAIT 0.001.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:PACK TO dstBase - 1.
+SET KUNIVERSE:DEFAULTLOADDISTANCE:PRELAUNCH:UNPACK TO dstBase - 1000.
+WAIT 0.001.
