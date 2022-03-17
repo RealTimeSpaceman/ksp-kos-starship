@@ -34,7 +34,7 @@ FRCS:setfield("deploy", true).
 RLCS:setfield("deploy", true).
 RRCS:setfield("deploy", true).
 
-local dstBase is 10000.
+local dstBase is 7000.
 // Note the order is important.  set UNLOAD BEFORE LOAD,
 // and PACK before UNPACK.  Otherwise the protections in
 // place to prevent invalid values will deny your attempt

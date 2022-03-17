@@ -70,7 +70,6 @@ function write_screen {
     set logline to logline + phase + ",".
     set logline to logline + round(SHIP:altitude, 0) + ",".
     set logline to logline + round(SHIP:q, 4) + ",".
-    set logline to logline + round(SHIP:groundspeed, 0) + ",".
     set logline to logline + round(SHIP:verticalspeed, 0) + ",".
     set logline to logline + round(SHIP:airspeed, 0) + ",".
     set logline to logline + round(surfDist, 0) + ",".
@@ -84,9 +83,6 @@ function write_screen {
     set logline to logline + round(engines, 0) + ",".
     set logline to logline + round(remProp, 2) + ",".
     log logline to sh_bb_log.csv.
-
-    set cam:heading to 85.
-    set cam:pitch to max(100 - (SHIP:altitude / 350), 160 - arcTan(SHIP:altitude/surfDist)).
 
 }
 
@@ -174,11 +170,6 @@ write_console().
 
 // Camera settings
 global cam is addons:camera:flightcamera.
-set cam:mode to "free".
-WAIT 0.001.
-set cam:heading to 85.
-WAIT 0.001.
-set cam:distance to 180.
 
 //---------------------------------------------------------------------------------------------------------------------
 // MAIN BODY
@@ -204,27 +195,30 @@ if remProp > minRemProp {
     // ASCENT
     until remProp < minRemProp {
         write_screen("Ascent").
-        print "Pad head:     " + round(landingPad:heading, 3) + "    " at(0, 20).
+        print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
     }
     print "                                  " at(0, 20).
 
     // STAGE
     set throttle to 0.
     ECAE:DoAction("shutdown engine", true).
-    wait 0.001.
-    
+    wait 0.1.
     stage.
-    
-    wait 0.001.
+    //CMDEC:doevent("decouple").
+    wait 0.1.
     ECAE:DoAction("shutdown engine", true).
     set throttle to 0.
 
-    set SHIP:name to "SuperHeavy".
+    set cam:target to FT.
+    set cam:pitch to 0.
+    set cam:heading to -90.
 
     local timeStage is time:seconds + 2.
     until time:seconds > timeStage {
         write_screen("Stage").
-        kuniverse:forceactive(SHIP).
+        set cam:target to FT.
+        set cam:pitch to 0.
+        set cam:heading to -90.
     }
 
 }
@@ -322,11 +316,13 @@ for GF in colGF{ GF:setfield("pitch", false). }
 for GF in colGF{ GF:setfield("yaw", false). }
 for GF in colGF{ GF:setfield("roll", false). }
 
+// Aim at retrograde
 global altPntRet is 80000.
 lock angAttack to vAng(srfRetrograde:vector, SHIP:facing:vector).
 lock steering to lookdirup(srfRetrograde:vector, heading(0, 90):vector).
 until SHIP:altitude < altPntRet { write_screen("Coast"). }
 
+// ******** ENTRY BURN ********
 rcs on.
 lock steering to lookdirup(srfRetrograde:vector, heading(padEntDir, 0):vector).
 // set throttle to 1.
@@ -344,6 +340,9 @@ lock axsProDes to vcrs(srfPrograde:vector, vecDesire).
 lock angVector to vAng(srfPrograde:vector, vecDesire).
 
 // ******** RE-ENTRY ********
+// set throttle to 0.
+set maxDflThr to 5.
+set maxDflBal to 15.
 
 // We swap rotProDes to the opposite direction now so as to use aero instead of thrust to try and minimise angVector
 lock axsProDes to vcrs(vecDesire, srfPrograde:vector).
@@ -370,45 +369,30 @@ set timEngSpl to time:seconds + secEngSpl.
 lock steering to lookdirup(-landingPad:position, heading(padEntDir, 0):vector).
 until time:seconds > timEngSpl { write_screen("Engine spool"). }
 
-// Stay on target...
-set maxDflAer to 2. // Maximum deflection during aero
-set maxDflThr to 3. // Maximum deflection during thrust
-set maxDflBal to 10. // Angle multiplier during throttle balance
-
-set mltDlfAer to 0.2. // Angle multiplier during aero
-set mltDlfThr to 2. // Angle multiplier during thrust
-set dynAerThr to 1.2. // Dynamic pressure threshold to switch from aero to thrust
-// set mltDlfAer to 0.02. // Angle multiplier during aero
-// set mltDlfThr to 0.08. // Angle multiplier during thrust
-// set dynAerThr to 1.2. // Dynamic pressure threshold to switch from aero to thrust
-
 // Swap angVector to landingPad vector and reverse rotProDes now we are flying under thrust
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock axsProDes to vcrs(srfPrograde:vector, landingPad:position).
-lock rotProDes to angleAxis(max(maxDflAer, angVector * mltDlfAer), axsProDes).
-// lock rotProDes to angleAxis(max(maxDflAer, surfDist * mltDlfAer), axsProDes).
+lock rotProDes to angleAxis(max(maxDflThr, angVector * 0.25), axsProDes).
 lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 // ******** LANDING BURN ********
 lock tarVSpeed to 0 - (sqrt((SHIP:altitude - tarAlt) / 1000) * 130). // Alter the final number maybe based on SHIP:mass?
 
 // Switch aero direction once dynamic pressure drops below a given threshold
-until SHIP:q < dynAerThr {
-    write_screen("Landing burn (aero)").
+until SHIP:q < 0.8 {
+    write_screen("Landing burn").
     print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
 }
-lock rotProDes to angleAxis(max(0 - maxDflThr, angVector * (0 - mltDlfThr)), axsProDes).
-// lock rotProDes to angleAxis(max(0 - maxDflThr, surfDist * (0 - mltDlfThr)), axsProDes).
+lock rotProDes to angleAxis(max(0 - maxDflThr, angVector * (0 - 2)), axsProDes).
 
 until SHIP:verticalspeed > tarVSpeed {
-    write_screen("Landing burn (thrust)").
+    write_screen("Landing burn").
     print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
 }
 print "                                  " at(0, 20).
 
 lock mltDflBal to 50 / (SHIP:altitude / 250).
 lock rotProDes to angleAxis(max(0 - maxDflBal, angVector * (0 - mltDflBal)), axsProDes).
-// lock rotProDes to angleAxis(max(0 - maxDflBal, surfDist * (0 - mltDflBal)), axsProDes).
 
 // Shutdown all but 3 gimbal engines
 set engines to 3.
@@ -424,7 +408,7 @@ lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed
 // Set final catch position
 set landingPad to latlng(26.038475, -97.153117).
 
-until SHIP:altitude < 500 {
+until SHIP:altitude < 300 {
     write_screen("Balance throttle").
     print "mltDflBal:    " + round(mltDflBal, 3) + "    " at(0, 20).
 }
