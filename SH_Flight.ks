@@ -86,7 +86,7 @@ function write_screen {
     log logline to sh_bb_log.csv.
 
     set cam:heading to 85.
-    set cam:pitch to max(100 - (SHIP:altitude / 350), 160 - arcTan(SHIP:altitude/surfDist)).
+    set cam:pitch to max(100 - (SHIP:altitude / 300), 165 - arcTan(SHIP:altitude/surfDist)).
 
 }
 
@@ -378,15 +378,11 @@ set maxDflBal to 10. // Angle multiplier during throttle balance
 set mltDlfAer to 0.2. // Angle multiplier during aero
 set mltDlfThr to 2. // Angle multiplier during thrust
 set dynAerThr to 1.2. // Dynamic pressure threshold to switch from aero to thrust
-// set mltDlfAer to 0.02. // Angle multiplier during aero
-// set mltDlfThr to 0.08. // Angle multiplier during thrust
-// set dynAerThr to 1.2. // Dynamic pressure threshold to switch from aero to thrust
 
 // Swap angVector to landingPad vector and reverse rotProDes now we are flying under thrust
 lock angVector to vAng(srfPrograde:vector, landingPad:position).
 lock axsProDes to vcrs(srfPrograde:vector, landingPad:position).
 lock rotProDes to angleAxis(max(maxDflAer, angVector * mltDlfAer), axsProDes).
-// lock rotProDes to angleAxis(max(maxDflAer, surfDist * mltDlfAer), axsProDes).
 lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
 
 // ******** LANDING BURN ********
@@ -398,7 +394,6 @@ until SHIP:q < dynAerThr {
     print "Dyn press:    " + round(SHIP:q, 3) + "    " at(0, 20).
 }
 lock rotProDes to angleAxis(max(0 - maxDflThr, angVector * (0 - mltDlfThr)), axsProDes).
-// lock rotProDes to angleAxis(max(0 - maxDflThr, surfDist * (0 - mltDlfThr)), axsProDes).
 
 until SHIP:verticalspeed > tarVSpeed {
     write_screen("Landing burn (thrust)").
@@ -407,8 +402,6 @@ until SHIP:verticalspeed > tarVSpeed {
 print "                                  " at(0, 20).
 
 lock mltDflBal to 50 / (SHIP:altitude / 250).
-lock rotProDes to angleAxis(max(0 - maxDflBal, angVector * (0 - mltDflBal)), axsProDes).
-// lock rotProDes to angleAxis(max(0 - maxDflBal, surfDist * (0 - mltDflBal)), axsProDes).
 
 // Shutdown all but 3 gimbal engines
 set engines to 3.
@@ -424,7 +417,18 @@ lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed
 // Set final catch position
 set landingPad to latlng(26.038475, -97.153117).
 
-until SHIP:altitude < 500 {
+// Set offset catch position
+local offMult is 1.5.
+local twrHeight is 235.
+set offsetPad to latlng(landingPad:lat - ((twrHeight * offMult/SHIP:altitude) * (SHIP:geoposition:lat - landingPad:lat)), landingPad:lng - ((twrHeight * offMult/SHIP:altitude) * (SHIP:geoposition:lng - landingPad:lng))).
+
+// Aim for offset pad for next section
+lock angVector to vAng(srfPrograde:vector, offsetPad:position).
+lock axsProDes to vcrs(srfPrograde:vector, offsetPad:position).
+lock rotProDes to angleAxis(max(0 - maxDflBal, angVector * (0 - mltDflBal)), axsProDes).
+lock steering to lookdirup(rotProDes * srfRetrograde:vector, heading(padEntDir, 0):vector).
+
+until SHIP:altitude < 300 {
     write_screen("Balance throttle").
     print "mltDflBal:    " + round(mltDflBal, 3) + "    " at(0, 20).
 }
@@ -436,6 +440,12 @@ lock vecThrust to ((vecLndPad / timeToRes) - vecSrfVel).
 // What heading should the vehicle thrust towards
 lock thrHead to heading_of_vector(vecThrust).
 
+// Abandon angVector as targeting mechanism
+lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):vector).
+lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed + 5)).
+set tarAlt to 200.
+lock tarVSpeed to (tarAlt - SHIP:altitude) / 5.
+
 // Bind to tower
 local secTCatch is 4.
 list targets in targs.
@@ -446,11 +456,6 @@ for targ in targs {
 }
 set OCS to tower:partstagged("OLIT_CS")[0].
 set OCSMD to OCS:GetModule("ModuleAnimateGeneric").
-
-lock steering to lookdirup(vecThrust + (150 * up:vector), heading(padEntDir, 0):vector).
-lock throttle to max(0.0001, pidThrottle:update(time:seconds, SHIP:verticalspeed + 5)).
-set tarAlt to 200.
-lock tarVSpeed to (tarAlt - SHIP:altitude) / 5.
 
 // ******** PAD APPROACH ********
 until OCSMD:hasevent("open arms") {
