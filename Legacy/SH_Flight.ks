@@ -85,8 +85,8 @@ function write_screen {
     set logline to logline + round(remProp, 2) + ",".
     log logline to sh_bb_log.csv.
 
-    set cam:heading to 85.
-    set cam:pitch to max(100 - (SHIP:altitude / 300), 165 - arcTan(SHIP:altitude/surfDist)).
+    // set cam:heading to 85.
+    // set cam:pitch to max(100 - (SHIP:altitude / 300), 155 - arcTan(SHIP:altitude/surfDist)).
 
 }
 
@@ -174,18 +174,20 @@ write_console().
 
 // Camera settings
 global cam is addons:camera:flightcamera.
-set cam:mode to "free".
-WAIT 0.001.
-set cam:heading to 85.
-WAIT 0.001.
-set cam:distance to 180.
+// set cam:mode to "free".
+// WAIT 0.001.
+// set cam:heading to 85.
+// WAIT 0.001.
+// set cam:target to FT.
+// WAIT 0.001.
+// set cam:distance to 180.
 
 //---------------------------------------------------------------------------------------------------------------------
 // MAIN BODY
 //---------------------------------------------------------------------------------------------------------------------
 
 global secEngSpl is 3.
-global minRemProp is 17.
+global minRemProp is 16.
 
 if remProp > minRemProp {
 
@@ -224,7 +226,7 @@ if remProp > minRemProp {
     local timeStage is time:seconds + 2.
     until time:seconds > timeStage {
         write_screen("Stage").
-        kuniverse:forceactive(SHIP).
+        //kuniverse:forceactive(SHIP).
     }
 
 }
@@ -246,6 +248,7 @@ if (remProp > (minRemProp - 1)) {
     local timeRCS is time:seconds + 1.
     until time:seconds > timeRCS {
         write_screen("Flip").
+        //kuniverse:forceactive(SHIP).
         print "Prop. stability:" + ECMI:GetField("propellant") + "    " at(0, 20).
     }
     set SHIP:control:pitch to 0. // Slow spin
@@ -263,7 +266,7 @@ if (remProp > (minRemProp - 1)) {
 
     until abs(padBear) < 90 {
         write_screen("Boostback").
-        set navMode to "Surface".
+        //set navMode to "Surface".
     }
 
     // TARGET PAD
@@ -373,10 +376,10 @@ until time:seconds > timEngSpl { write_screen("Engine spool"). }
 // Stay on target...
 set maxDflAer to 2. // Maximum deflection during aero
 set maxDflThr to 3. // Maximum deflection during thrust
-set maxDflBal to 10. // Angle multiplier during throttle balance
+set maxDflBal to 10. // Maximum deflection during throttle balance
 
-set mltDlfAer to 0.2. // Angle multiplier during aero
-set mltDlfThr to 2. // Angle multiplier during thrust
+set mltDlfAer to 0.12. // Angle multiplier during aero
+set mltDlfThr to 1. // Angle multiplier during thrust
 set dynAerThr to 1.2. // Dynamic pressure threshold to switch from aero to thrust
 
 // Swap angVector to landingPad vector and reverse rotProDes now we are flying under thrust
@@ -401,7 +404,6 @@ until SHIP:verticalspeed > tarVSpeed {
 }
 print "                                  " at(0, 20).
 
-lock mltDflBal to 50 / (SHIP:altitude / 250).
 
 // Shutdown all but 3 gimbal engines
 set engines to 3.
@@ -423,6 +425,7 @@ local twrHeight is 235.
 set offsetPad to latlng(landingPad:lat - ((twrHeight * offMult/SHIP:altitude) * (SHIP:geoposition:lat - landingPad:lat)), landingPad:lng - ((twrHeight * offMult/SHIP:altitude) * (SHIP:geoposition:lng - landingPad:lng))).
 
 // Aim for offset pad for next section
+lock mltDflBal to 50 / (SHIP:altitude / 250).
 lock angVector to vAng(srfPrograde:vector, offsetPad:position).
 lock axsProDes to vcrs(srfPrograde:vector, offsetPad:position).
 lock rotProDes to angleAxis(max(0 - maxDflBal, angVector * (0 - mltDflBal)), axsProDes).
