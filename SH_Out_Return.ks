@@ -109,14 +109,14 @@ function relative_bearing {
 }
 
 //---------------------------------------------------------------------------------------------------------------------
-// SHIP CONTROLS
+// SHIP INITIALISE
 //---------------------------------------------------------------------------------------------------------------------
 
 runOncePath("MD_SH_Bind").
 runPath("MD_Ini_SH_Launch").
 
 //---------------------------------------------------------------------------------------------------------------------
-// INITIALISE
+// SCRIPT INITIALISE
 //---------------------------------------------------------------------------------------------------------------------
 
 // Grid fin group
@@ -135,7 +135,7 @@ wait 0.1.
 ECAE:DoAction("activate engine", true).
 
 // Track remaining propellant
-lock remProp to (FT:Resources[0]:amount / 2268046) * 100.
+lock remProp to (FT:Resources[0]:amount / 2325662) * 100.
 
 // Track distance and heading to pad
 lock SHHeading to heading_of_vector(SHIP:srfprograde:vector).
@@ -195,13 +195,17 @@ if remProp > minRemProp {
 
     until abs(SHIP:orbit:lan - target:orbit:lan) < 0.01 {
         write_screen("Pre-launch").
-        print "AN lng delta:   " + round(abs(SHIP:orbit:lan - target:orbit:lan), 4) + "    " at(0, 20).
+        print "AN lng delta: " + round(abs(SHIP:orbit:lan - target:orbit:lan), 4) + "    " at(0, 20).
     }
+    print "                                  " at(0, 20).
 
     // Release quick disconnect fuel connections
     if QDAA:hasevent("open") { QDAA:doevent("open"). }
     if QDBA:hasevent("open") { QDBA:doevent("open"). }
+
+    // Ignition sequence start
     set throttle to 1.
+    lock steering to up.
 
     local timEngSpl is time:seconds + secEngSpl.
     until time:seconds > timEngSpl { write_screen("Engine spool"). }
@@ -209,10 +213,17 @@ if remProp > minRemProp {
     // Release launch clamp
     OPLC:doaction("release clamp", true).
 
+    until SHIP:apoapsis > 1000 { write_screen("Clear tower"). }
+
+    // Gravity turn
+    set altPE to 200000.
+    lock tarPitAng to (1 - sqrt((SHIP:apoapsis - 1000) / altPE)) * 90.
+    lock steering to lookDirUp(heading(90, tarPitAng):vector, up:vector).
+
     // ASCENT
     until remProp < minRemProp {
-        write_screen("Ascent").
-        print "Pad head:     " + round(landingPad:heading, 3) + "    " at(0, 20).
+        write_screen("Gravity turn").
+        print "Target pitch: " + round(tarPitAng, 2) + "    " at(0, 20).
     }
     print "                                  " at(0, 20).
 
@@ -251,13 +262,14 @@ if (remProp > (minRemProp - 1)) {
 
     rcs on.
     set SHIP:control:pitch to 1. // Begin pitch over
-    local timeRCS is time:seconds + 1.
+    local timeRCS is time:seconds + 2.
     until time:seconds > timeRCS {
-        write_screen("Flip").
+        write_screen("Flip start").
         //kuniverse:forceactive(SHIP).
         print "Prop. stability:" + ECMI:GetField("propellant") + "    " at(0, 20).
     }
     set SHIP:control:pitch to 0. // Slow spin
+    rcs off.
     set timeRCS to time:seconds + 4.
     until time:seconds > timeRCS {
         write_screen("Flip").
@@ -266,13 +278,14 @@ if (remProp > (minRemProp - 1)) {
             set throttle to 1.
         }
     }
+    rcs on.
     local headBB is heading_of_vector(srfRetrograde:vector).
     lock steering to lookdirup(heading(headBB, 0):vector, heading(0, -90):vector). // Aim at horizon in direction of retrograde
-    until vAng(SHIP:facing:vector, heading(headBB, 0):vector) < 30 { write_screen("Flip"). }
+    until vAng(SHIP:facing:vector, heading(headBB, 0):vector) < 30 { write_screen("Flip stop"). }
 
     until abs(padBear) < 90 {
         write_screen("Boostback").
-        //set navMode to "Surface".
+        set navMode to "Surface".
     }
 
     // TARGET PAD
